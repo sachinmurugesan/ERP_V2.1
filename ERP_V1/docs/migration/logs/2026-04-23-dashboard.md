@@ -366,6 +366,25 @@ Updated the `/dashboard` row in the "Currently migrated" table. Notes now descri
 - **Date resolved:** 2026-04-23.
 - **Tests added:** `stage chip tone mapping` describe block — 3 tests (distinct tones for 1–13; neutral for 15/18/22/99; accessible label on high-stage chip).
 
+### Issue 2: Visual polish gap against v1 design reference
+
+- **Date raised:** 2026-04-23 (post-login visual review).
+- **Problem:** With the backend online and a real session, the live dashboard felt plain vs the v1 design reference in `Design/screens/dashboard-v1.jsx`. Two concrete gaps surfaced:
+  1. Topbar showed only a static `HarvestERP` title; v1 has a time-of-day greeting + date subtitle ("Good morning, Ravi · Tue, 21 Apr").
+  2. The WelcomeCard surfaced the full email `admin@harvesterp.com` instead of a friendly name, because `/api/auth/me`'s `full_name` wasn't being read with the correct null-tolerance.
+  3. KPI cards looked flat — no sparkline/delta (dropped per decision #3) meant the only visual distinction per card was the right-side icon badge.
+- **Root cause:**
+  1. `AppTopbar` was wired with a hard-coded `title="HarvestERP"` in `(app)/layout.tsx`; no per-route greeting logic.
+  2. `resolveUserName()` in `page.tsx` used `u.full_name ?? u.email` which falls through to email when `full_name` is null (not undefined), and didn't title-case the email local part.
+  3. `KpiCard` styled the icon badge per tone but had no accent on the card itself.
+- **Fix applied:** "Tier A" visual polish, scoped to not reverse Phase 2 content decisions:
+  1. New helper `src/lib/display-name.ts` with `resolveDisplayName()` — prefers `full_name`, falls back to title-cased email local part (`admin@harvesterp.com` → `Admin`), with `"there"` as a last resort. Used by both the layout (for sidebar + topbar greeting) and the dashboard page (for WelcomeCard).
+  2. `AppTopbar` is now pathname-aware via `usePathname()`. On `/dashboard` (or `/`) it overrides the title to `Dashboard` and the subtitle to a greeting computed from the user's local time: `<Good morning|afternoon|evening>, <Name> · <Weekday, DD Mon>`. Re-computed every 60 s client-side so the greeting transitions naturally (morning → afternoon).
+  3. `KpiCard` gained a 3 px tone-coloured left border (`TONE_ACCENT_COLOR`) — info/warn/err/ok each have a matching accent, making the five-card row visually legible at a glance without adding any data dependency. Neutral tone uses `var(--border)` so unstyled cards don't become accidental accents.
+- **Date resolved:** 2026-04-23.
+- **Tests added:** `tests/lib/display-name.test.ts` — 5 tests covering full_name preference, whitespace handling, title-casing, delimiters (`_`, `.`, `-`), and the `"there"` fallback. Test count: 209 → 214.
+- **Phase 2 decisions preserved:** no sparklines, no Revenue Trend chart, no Cash Position donut. Those remain deferred to a future `/finance-dashboard` migration.
+
 ---
 
 ## Proposed rules for CONVENTIONS.md

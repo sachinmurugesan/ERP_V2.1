@@ -51,6 +51,14 @@ const TONE_SPARK_COLOR: Record<KpiTone, string> = {
   info: "var(--info)",
 };
 
+const TONE_ACCENT_COLOR: Record<KpiTone, string> = {
+  neutral: "var(--border)",
+  ok: "var(--ok)",
+  warn: "var(--warn)",
+  err: "var(--err)",
+  info: "var(--info)",
+};
+
 export function KpiCard({
   label,
   value,
@@ -79,10 +87,15 @@ export function KpiCard({
         ? "kpi-delta-down"
         : "";
 
+  const accentStyle: React.CSSProperties = {
+    borderLeft: `3px solid ${TONE_ACCENT_COLOR[effectiveTone]}`,
+    ...(style ?? {}),
+  };
+
   return (
     <div
       className={`card card-pad ${className}`}
-      {...(style !== undefined ? { style } : {})}
+      style={accentStyle}
       role="region"
       aria-label={label}
     >

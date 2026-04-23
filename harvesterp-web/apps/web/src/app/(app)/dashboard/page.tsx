@@ -2,6 +2,7 @@ import * as React from "react";
 import { Suspense } from "react";
 import { getSessionToken } from "@/lib/session";
 import { getServerClient } from "@/lib/api-server";
+import { resolveDisplayName } from "@/lib/display-name";
 import { WelcomeCard } from "./_components/welcome-card";
 import {
   KpiSummary,
@@ -39,8 +40,9 @@ async function resolveUserName(): Promise<string> {
     const client = await getServerClient();
     const result = await client.GET("/api/auth/me");
     if (!result.data) return "there";
-    const user = result.data as { full_name?: string; email?: string };
-    return user.full_name ?? user.email ?? "there";
+    return resolveDisplayName(
+      result.data as { full_name?: string | null; email?: string | null },
+    );
   } catch {
     return "there";
   }
