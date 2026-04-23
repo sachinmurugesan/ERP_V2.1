@@ -4,7 +4,7 @@ Supply chain management system for importing combine harvester spare parts (Chin
 
 ## Tech Stack
 
-- **Backend:** FastAPI + SQLAlchemy 2.0 + SQLite (WAL mode)
+- **Backend:** FastAPI + SQLAlchemy 2.0 + PostgreSQL
 - **Frontend:** Vue 3 + Vite 5 + Tailwind CSS 3 + PrimeVue
 - **File Processing:** openpyxl + Pillow (image extraction/resize)
 
@@ -66,16 +66,37 @@ frontend/
 
 ## Running
 
-```bash
-# Backend
-cd backend
-pip install -r requirements.txt
-python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+### With Docker Compose (recommended)
 
-# Frontend
+```bash
+docker compose up
+# nginx on :80 → Vue (:5173), Next.js (:3000), FastAPI (:8001)
+```
+
+### Manual (backend only)
+
+PostgreSQL is required — SQLite is not supported.
+
+```bash
+# 1. Start the database container
+docker compose up db -d
+
+# 2. Configure the backend
+cd backend
+cp .env.example .env
+# Edit .env: set DATABASE_URL, ANTHROPIC_API_KEY, JWT_SECRET_KEY
+
+# 3. Install and run
+pip install -r requirements.txt
+python -m uvicorn main:app --host 0.0.0.0 --port 8001 --reload
+```
+
+### Frontend (Vue)
+
+```bash
 cd frontend
 npm install
-npm run dev
+npm run dev   # http://localhost:5173
 ```
 
 ## Key Rules
