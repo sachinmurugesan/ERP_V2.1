@@ -49,6 +49,11 @@ blob-report/
 *.log
 logs/
 
+# Exception: migration logs are deliverables per CONVENTIONS.md §3 and
+# must be committed alongside each page migration.
+!ERP_V1/docs/migration/logs/
+!ERP_V1/docs/migration/logs/**
+
 # ─── OS cruft ────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
