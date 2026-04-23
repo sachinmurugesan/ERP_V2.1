@@ -23,9 +23,19 @@ if _env_path.exists():
 # ========================================
 # Database
 # ========================================
-# SQLite (dev): sqlite:///path/to/db.sqlite
-# PostgreSQL (prod): postgresql://user:pass@host:5432/dbname
-DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{BASE_DIR}/harvesterpdata.db")
+# PostgreSQL is required. SQLite is not supported.
+# Set DATABASE_URL in backend/.env (see backend/.env.example for the format).
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise RuntimeError(
+        "DATABASE_URL environment variable is required. "
+        "Copy backend/.env.example to backend/.env and configure."
+    )
+if DATABASE_URL.startswith("sqlite"):
+    raise RuntimeError(
+        "SQLite is not supported. HarvestERP requires PostgreSQL. "
+        "Check backend/.env for the correct DATABASE_URL."
+    )
 
 # ========================================
 # File Uploads
