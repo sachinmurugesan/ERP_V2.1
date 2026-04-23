@@ -87,9 +87,8 @@ def _keyword_fallback(
             if field not in schema:
                 continue
             if any(kw in val for kw in keywords):
-                # Only keep first match per field
-                if field not in confirmed:
-                    confirmed[field] = raw_header
+                if field not in confirmed.values():
+                    confirmed[raw_header] = field
                 break
 
     return {
@@ -97,7 +96,7 @@ def _keyword_fallback(
         "needs_review": [],
         "unmapped_fields": [
             f for f, info in schema.items()
-            if info["required"] and f not in confirmed
+            if info["required"] and f not in confirmed.values()
         ],
     }
 

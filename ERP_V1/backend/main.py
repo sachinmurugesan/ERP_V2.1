@@ -200,6 +200,7 @@ app.include_router(orders.router, prefix="/api/orders", tags=["Orders"],
                    dependencies=[Depends(get_current_user)])
 app.include_router(queries.router, prefix="/api/orders", tags=["Queries"],
                    dependencies=[Depends(get_current_user)])
+app.include_router(products.public_router, prefix="/api/products", tags=["Products"])
 app.include_router(products.router, prefix="/api/products", tags=["Products"],
                    dependencies=[Depends(get_current_user)])
 app.include_router(factories.router, prefix="/api/factories", tags=["Factories"],

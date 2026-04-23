@@ -1,9 +1,12 @@
 """Product Catalog API endpoints"""
+import logging
 import os
 from math import ceil
 import shutil
 import hashlib
 from typing import Optional, List
+
+logger = logging.getLogger(__name__)
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 from fastapi.responses import FileResponse
 from pathlib import Path
@@ -30,6 +33,7 @@ from schemas.products import (
 )
 
 router = APIRouter()
+public_router = APIRouter()  # No auth — used for public file serving
 
 
 def _prod_url(path: str) -> str:
@@ -43,15 +47,12 @@ def _prod_url(path: str) -> str:
 # Product File Proxy (authenticated)
 # ========================================
 
-@router.get("/file/")
+@public_router.get("/file/")
 def download_product_file(
     path: str = Query(..., description="Relative path within uploads, e.g. products/abc/image.jpg"),
-    db: Session = Depends(get_db),
-    current_user: CurrentUser = Depends(get_current_user),
 ):
-    """Authenticated download of a product catalog image (factory_image_path).
-    Path is whitelisted to the products/ subdirectory only.
-    Any valid authenticated user may access product catalog images.
+    """Public download of a product catalog image.
+    Path is whitelisted to the products/ subdirectory only; UUID dirs prevent enumeration.
     """
     # Strict whitelist — only the products/ subdirectory
     if not path.startswith("products/") or ".." in path:
@@ -678,18 +679,15 @@ def re_extract_images(
     db: Session = Depends(get_db),
     current_user: CurrentUser = Depends(get_current_user),
 ):
-    """Re-extract product images from the latest uploaded Excel file in temp directory.
-    Matches Excel rows to existing products by product_code, extracts images, saves to disk."""
+    """Re-extract product images from Excel files in the temp directory.
+    Supports both floating ('over the cell') and embedded ('fit into cell') images.
+    Matches rows to products by product_code column; saves new images, skips duplicates."""
     if current_user.user_type != "INTERNAL":
         raise HTTPException(status_code=403, detail="Internal access only")
-    import hashlib
-    import io
-    import uuid as uuid_mod
-    import openpyxl
-    from PIL import Image as PILImage
-    from config import THUMBNAIL_MAX_DIM
 
-    # Scan ALL Excel files in temp for images
+    import openpyxl
+    from services.image_extractor import collect_all_images, save_image_to_disk
+
     temp_dir = UPLOAD_DIR / "temp"
     xlsx_files = sorted(temp_dir.glob("*.xlsx"), key=lambda f: f.stat().st_mtime, reverse=True)
     if not xlsx_files:
@@ -699,7 +697,7 @@ def re_extract_images(
     all_products = db.query(Product).filter(Product.deleted_at.is_(None)).all()
     code_to_pid = {p.product_code: p.id for p in all_products}
 
-    # Get existing image hashes to avoid duplicates
+    # Existing image hashes per product for dedup
     existing_hashes: dict[str, set] = {}
     for img_rec in db.query(ProductImage).all():
         existing_hashes.setdefault(img_rec.product_id, set()).add(img_rec.image_hash)
@@ -712,145 +710,70 @@ def re_extract_images(
 
     for excel_path in xlsx_files:
         try:
-            wb_check = openpyxl.load_workbook(str(excel_path))
-            ws_check = wb_check.active
-            if len(ws_check._images) == 0:
-                wb_check.close()
-                continue
-            wb_check.close()
-        except Exception:
-            continue
-
-        # Read Excel: build row → product_code mapping
-        wb_data = openpyxl.load_workbook(str(excel_path), read_only=True)
-        ws_data = wb_data.active
-
-        # Detect column layout from header row
-        header_row = list(ws_data.iter_rows(min_row=1, max_row=1, values_only=True))[0]
-        part_no_indices = []
-        for ci, val in enumerate(header_row):
-            hval = str(val or "").strip().lower()
-            if "part no" in hval or "part code" in hval or "mfr" in hval:
-                part_no_indices.append(ci)
-
-        if not part_no_indices:
+            # Build row → product_code from the data sheet
+            wb_data = openpyxl.load_workbook(str(excel_path), read_only=True)
+            ws_data = wb_data.active
+            header_row = list(ws_data.iter_rows(min_row=1, max_row=1, values_only=True))[0]
+            part_no_indices = [
+                ci for ci, val in enumerate(header_row)
+                if any(kw in str(val or "").strip().lower() for kw in ("part no", "part code", "mfr"))
+            ]
             wb_data.close()
-            continue
 
-        # Use second Part No. column (manufacturer code), or first if only one
-        mfr_col = part_no_indices[1] if len(part_no_indices) >= 2 else part_no_indices[0]
+            if not part_no_indices:
+                continue
 
-        row_to_code = {}
-        for row_idx, row in enumerate(ws_data.iter_rows(min_row=2, values_only=True), start=2):
-            if row and len(row) > mfr_col and row[mfr_col]:
-                code = str(row[mfr_col]).strip()
-                if code:
-                    row_to_code[row_idx] = code
-        wb_data.close()
+            mfr_col = part_no_indices[1] if len(part_no_indices) >= 2 else part_no_indices[0]
 
-        # Load full workbook for images
-        wb_full = openpyxl.load_workbook(str(excel_path))
-        ws_full = wb_full.active
+            wb_data2 = openpyxl.load_workbook(str(excel_path), read_only=True)
+            ws_data2 = wb_data2.active
+            row_to_code: dict[int, str] = {}
+            for row_idx, row in enumerate(ws_data2.iter_rows(min_row=2, values_only=True), start=2):
+                if row and len(row) > mfr_col and row[mfr_col]:
+                    code = str(row[mfr_col]).strip()
+                    if code:
+                        row_to_code[row_idx] = code
+            wb_data2.close()
 
-        saved = 0
-        for img in ws_full._images:
-            try:
-                anchor_row = None
-                try:
-                    anchor_row = img.anchor._from.row
-                except AttributeError:
-                    try:
-                        anchor_row = img.anchor.row
-                    except AttributeError:
-                        continue
+            if not row_to_code:
+                continue
 
-                if anchor_row is None:
-                    continue
+            # Collect images from both drawing and richData styles
+            all_images = collect_all_images(str(excel_path))
+            if not all_images:
+                continue
 
-                excel_row = anchor_row + 1
+            saved = 0
+            for excel_row, image_data in all_images.items():
                 code = row_to_code.get(excel_row)
                 if not code:
                     total_skipped_no_match += 1
                     continue
-
                 pid = code_to_pid.get(code)
                 if not pid:
                     total_skipped_no_match += 1
                     continue
-
-                # Extract image data
                 try:
-                    image_data = img._data()
-                except Exception:
-                    image_data = None
-                if not image_data:
+                    ok = save_image_to_disk(
+                        image_data, pid, "FACTORY_EXCEL", None,
+                        db, ProductImage, existing_hashes,
+                    )
+                    if ok:
+                        saved += 1
+                    else:
+                        total_skipped_dup += 1
+                except Exception as e:
+                    logger.warning("re_extract row %d: %s", excel_row, e)
                     total_errors += 1
-                    continue
 
-                # Dedup by hash (not for security — identifies duplicate files only)
-                image_hash = hashlib.md5(image_data, usedforsecurity=False).hexdigest()
-                if image_hash in existing_hashes.get(pid, set()):
-                    total_skipped_dup += 1
-                    continue
+            if saved > 0:
+                db.commit()
+                total_saved += saved
+                files_processed += 1
 
-                # Save original quality image
-                img_dir = UPLOAD_DIR / "products" / pid
-                img_dir.mkdir(parents=True, exist_ok=True)
-
-                pil_img = PILImage.open(io.BytesIO(image_data))
-                w, h = pil_img.size
-
-                is_png = image_data[:8] == b'\x89PNG\r\n\x1a\n'
-                is_jpg = image_data[:2] == b'\xff\xd8'
-
-                if is_png or is_jpg:
-                    ext = ".png" if is_png else ".jpg"
-                    img_filename = f"img_{uuid_mod.uuid4().hex[:8]}{ext}"
-                    img_path = img_dir / img_filename
-                    with open(str(img_path), "wb") as f:
-                        f.write(image_data)
-                else:
-                    img_filename = f"img_{uuid_mod.uuid4().hex[:8]}.png"
-                    img_path = img_dir / img_filename
-                    pil_img.save(str(img_path), "PNG")
-
-                # Generate thumbnail
-                thumb_filename = img_filename.replace("img_", "thumb_").rsplit(".", 1)[0] + ".jpg"
-                thumb_path = img_dir / thumb_filename
-                thumb_img = pil_img.copy()
-                thumb_img.thumbnail((THUMBNAIL_MAX_DIM, THUMBNAIL_MAX_DIM), PILImage.LANCZOS)
-                if thumb_img.mode in ('RGBA', 'P', 'LA'):
-                    thumb_img = thumb_img.convert('RGB')
-                thumb_img.save(str(thumb_path), "JPEG", quality=80)
-
-                # Save to DB
-                rel_path = f"products/{pid}/{img_filename}"
-                thumb_rel_path = f"products/{pid}/{thumb_filename}"
-                file_size = os.path.getsize(str(img_path))
-
-                db.add(ProductImage(
-                    product_id=pid,
-                    image_path=rel_path,
-                    thumbnail_path=thumb_rel_path,
-                    image_hash=image_hash,
-                    source_type="FACTORY_EXCEL",
-                    width=w,
-                    height=h,
-                    file_size=file_size,
-                    is_primary=False,
-                ))
-                existing_hashes.setdefault(pid, set()).add(image_hash)
-                saved += 1
-
-            except Exception:
-                total_errors += 1
-                continue
-
-        wb_full.close()
-        if saved > 0:
-            db.commit()
-            total_saved += saved
-            files_processed += 1
+        except Exception as e:
+            logger.warning("re_extract file %s: %s", excel_path.name, e)
+            total_errors += 1
 
     return {
         "images_saved": total_saved,

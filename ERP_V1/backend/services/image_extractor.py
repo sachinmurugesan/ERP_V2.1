@@ -223,6 +223,64 @@ def save_image_to_disk(
 
 
 # ---------------------------------------------------------------------------
+# Unified image collection — always tries both Excel image styles
+# ---------------------------------------------------------------------------
+
+def collect_all_images(file_path: str) -> Dict[int, bytes]:
+    """Return {excel_row (1-based): image_bytes} from an Excel file.
+
+    Runs Strategy A (floating "over the cell" drawing images) and Strategy B
+    (Excel 365 "fit into cell" richData images) unconditionally and merges
+    results so files that use either style — or both — are handled correctly.
+    Strategy A takes priority; Strategy B fills any gaps.
+    """
+    images: Dict[int, bytes] = {}
+
+    # Strategy A: traditional openpyxl drawing anchors
+    try:
+        wb = openpyxl.load_workbook(file_path)
+        ws = wb.active
+        for img in ws._images:
+            try:
+                anchor_row = None
+                try:
+                    anchor_row = img.anchor._from.row
+                except AttributeError:
+                    try:
+                        anchor_row = img.anchor.row
+                    except AttributeError:
+                        pass
+                if anchor_row is None:
+                    continue
+                excel_row = anchor_row + 1  # 0-based → 1-based
+                data = img._data()
+                if data and excel_row not in images:
+                    images[excel_row] = data
+            except Exception as e:
+                logger.warning("Drawing image error: %s", e)
+        wb.close()
+        if images:
+            logger.info("collect_all_images: Strategy A found %d drawing images", len(images))
+    except Exception as e:
+        logger.warning("Drawing extraction failed: %s", e)
+
+    # Strategy B: Excel 365 richData (fit into cell) — always run, fills gaps
+    try:
+        richdata = extract_richdata_images(file_path)
+        before = len(images)
+        for excel_row, data in richdata.items():
+            if excel_row not in images:
+                images[excel_row] = data
+        added = len(images) - before
+        if added:
+            logger.info("collect_all_images: Strategy B added %d richData images", added)
+    except Exception as e:
+        logger.warning("RichData extraction failed: %s", e)
+
+    return images
+
+
+# ---------------------------------------------------------------------------
 # Extract images for parsed rows (Pass 2 of factory Excel)
 # ---------------------------------------------------------------------------
 
@@ -294,78 +352,19 @@ def extract_images_for_rows(
         # Track hash AFTER save attempt — prevents double-dedup bug
         product_image_hashes[pid].add(image_hash)
 
-    images_found = False
+    all_images = collect_all_images(file_path)
+    total_images = len(all_images)
+    logger.info("PASS2: %d images collected from Excel", total_images)
 
-    # Strategy A: Traditional openpyxl drawing-based images
-    try:
-        wb_full = openpyxl.load_workbook(file_path)
-        ws_full = wb_full.active
-
-        if ws_full._images:
-            images_found = True
-            total_images = len(ws_full._images)
-            logger.info("PASS2: Found %d drawing-based images", total_images)
-
-            for img_idx, img in enumerate(ws_full._images):
-                try:
-                    anchor_row = None
-                    try:
-                        anchor_row = img.anchor._from.row
-                    except AttributeError:
-                        try:
-                            anchor_row = img.anchor.row
-                        except AttributeError:
-                            pass
-
-                    if anchor_row is None:
-                        summary["errors"] += 1
-                        continue
-
-                    excel_row = anchor_row + 1
-                    try:
-                        image_data = img._data()
-                    except Exception as e:
-                        logger.warning("PASS2 drawing img %d: _data() failed: %s", img_idx, e)
-                        image_data = None
-                    if not image_data:
-                        summary["errors"] += 1
-                        continue
-
-                    _save_for_row(excel_row, image_data)
-                except Exception as e:
-                    logger.warning("PASS2 drawing img %d: error: %s", img_idx, e)
-                    summary["errors"] += 1
-
-                if on_progress and img_idx % 3 == 0:
-                    on_progress(50 + min(int((img_idx + 1) / max(total_images, 1) * 50), 50))
-
-        wb_full.close()
-    except Exception as e:
-        logger.warning("PASS2 drawing-based extraction failed: %s", e)
-        summary["errors"] += 1
-
-    # Strategy B: Excel 365 richData cell images (when no drawing images found)
-    if not images_found:
+    for img_idx, (excel_row, image_data) in enumerate(all_images.items()):
         try:
-            richdata_images = extract_richdata_images(file_path)
-            if richdata_images:
-                images_found = True
-                total_rd = len(richdata_images)
-                logger.info("PASS2: Found %d richData cell images", total_rd)
-
-                for rd_idx, (excel_row, image_data) in enumerate(richdata_images.items()):
-                    try:
-                        _save_for_row(excel_row, image_data)
-                    except Exception as e:
-                        logger.warning("PASS2 richdata row %d: error: %s", excel_row, e)
-                        summary["errors"] += 1
-
-                    if on_progress and rd_idx % 5 == 0:
-                        on_progress(50 + min(int((rd_idx + 1) / max(total_rd, 1) * 50), 50))
-
+            _save_for_row(excel_row, image_data)
         except Exception as e:
-            logger.warning("PASS2 richData extraction failed: %s", e)
+            logger.warning("PASS2 row %d: error: %s", excel_row, e)
             summary["errors"] += 1
+
+        if on_progress and img_idx % 3 == 0:
+            on_progress(50 + min(int((img_idx + 1) / max(total_images, 1) * 50), 50))
 
     return product_image_hashes
 
@@ -438,74 +437,23 @@ def post_apply_extract_images(
         db.flush()
         images_replaced_count = len(set(img.product_id for img in old_images))
 
-    # Step 2: Extract and save fresh images
-    def _apply_save(pid: str, image_data: bytes):
-        nonlocal images_saved
-        ok = save_image_to_disk(
-            image_data, pid, "FACTORY_EXCEL", job_order_id,
-            db, ProductImage, saved_hashes,
-        )
-        if ok:
-            images_saved += 1
+    # Step 2: Extract and save fresh images (both drawing and richData styles)
+    all_images = collect_all_images(file_path)
+    logger.info("PostApply: %d images collected from Excel", len(all_images))
 
-    apply_images_found = False
-
-    # Strategy A: Traditional drawing-based images
-    try:
-        wb_img = openpyxl.load_workbook(file_path)
-        ws_img = wb_img.active
-
-        if ws_img._images:
-            apply_images_found = True
-            for img in ws_img._images:
-                try:
-                    anchor_row = None
-                    try:
-                        anchor_row = img.anchor._from.row
-                    except AttributeError:
-                        try:
-                            anchor_row = img.anchor.row
-                        except AttributeError:
-                            continue
-                    if anchor_row is None:
-                        continue
-
-                    excel_row = anchor_row + 1
-                    if excel_row not in excel_row_product_map:
-                        continue
-
-                    pid = excel_row_product_map[excel_row]
-                    try:
-                        image_data = img._data()
-                    except Exception:
-                        image_data = None
-                    if not image_data:
-                        continue
-
-                    _apply_save(pid, image_data)
-                except Exception as e:
-                    logger.warning("PostApply drawing image error: %s", e)
-                    continue
-
-        wb_img.close()
-    except Exception as e:
-        logger.warning("PostApply drawing extraction failed: %s", e)
-
-    # Strategy B: Excel 365 richData cell images
-    if not apply_images_found:
+    for excel_row, image_data in all_images.items():
+        pid = excel_row_product_map.get(excel_row)
+        if not pid:
+            continue
         try:
-            richdata_images = extract_richdata_images(file_path)
-            if richdata_images:
-                for excel_row, image_data in richdata_images.items():
-                    if excel_row not in excel_row_product_map:
-                        continue
-                    pid = excel_row_product_map[excel_row]
-                    try:
-                        _apply_save(pid, image_data)
-                    except Exception as e:
-                        logger.warning("PostApply richdata row %d: %s", excel_row, e)
+            ok = save_image_to_disk(
+                image_data, pid, "FACTORY_EXCEL", job_order_id,
+                db, ProductImage, saved_hashes,
+            )
+            if ok:
+                images_saved += 1
         except Exception as e:
-            logger.warning("PostApply richData extraction failed: %s", e)
+            logger.warning("PostApply row %d: %s", excel_row, e)
 
     if images_saved > 0:
         db.commit()
