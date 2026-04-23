@@ -1,0 +1,187 @@
+/**
+ * Permission matrix — D-004 (DECISIONS.md)
+ *
+ * Each entry lists the roles that MAY access the resource/action,
+ * EXCLUDING SUPER_ADMIN (which bypasses all checks via has_any_role — see permissions.ts).
+ *
+ * ── Verification status ─────────────────────────────────────────────────────
+ *
+ * Every entry has been verified against the actual backend authorization code
+ * as of 2026-04-22. Sources listed per-entry.
+ *
+ * Annotation key:
+ *   // VERIFIED <source>   — confirmed against backend endpoint / security.py
+ *   // FRONTEND_ONLY       — no backend endpoint; pure client-side tab/route visibility
+ *   // INVENTED            — no backend counterpart confirmed; needs Sachin review
+ *
+ * ── Backend role enum ────────────────────────────────────────────────────────
+ * backend/core/security.py UserRole has exactly 6 values:
+ *   SUPER_ADMIN | ADMIN | FINANCE | OPERATIONS | CLIENT | FACTORY
+ *
+ * NOTE: The TA (Technical Assistant) role is defined in Layer 1 roles.ts for
+ * future use but does NOT currently exist in the backend. It must NOT appear
+ * in any matrix entry that gates a backend API call.
+ *
+ * ── Key security.py dependencies ─────────────────────────────────────────────
+ *   require_finance           = [SUPER_ADMIN, ADMIN, FINANCE]    — router-level /api/finance
+ *   require_factory_financial = [SUPER_ADMIN, FINANCE]           — endpoint-level factory cost
+ *   require_operations        = [ADMIN, OPERATIONS]
+ *   require_admin             = [ADMIN]  (SUPER_ADMIN bypass applies)
+ *   require_read              = [ADMIN, FINANCE, OPERATIONS, CLIENT, FACTORY]
+ *
+ * ── Factory ledger effective access (D-009 / D-004) ──────────────────────────
+ * Cluster A endpoints carry BOTH:
+ *   router-level:    require_finance           = [SUPER_ADMIN, ADMIN, FINANCE]
+ *   endpoint-level:  require_factory_financial = [SUPER_ADMIN, FINANCE]
+ * Intersection → SUPER_ADMIN | FINANCE only.
+ * ADMIN is deliberately excluded per D-004: "ADMIN remains excluded from factory
+ * cost data." D-009-A2 requires a frontend role gate to hide the Factory Ledger
+ * tab from ADMIN.
+ */
+
+import { UserRole } from "./roles.js";
+
+const {
+  SUPER_ADMIN,
+  ADMIN,
+  OPERATIONS,
+  FINANCE,
+  CLIENT,
+  FACTORY,
+} = UserRole;
+
+// NOTE: TA is intentionally omitted from destructuring — it has no backend counterpart.
+
+// ---------------------------------------------------------------------------
+// Resource keys
+// ---------------------------------------------------------------------------
+
+export const Resource = {
+  // Orders
+  ORDER_LIST:           "ORDER_LIST",
+  ORDER_DETAIL:         "ORDER_DETAIL",
+  ORDER_CREATE:         "ORDER_CREATE",
+  ORDER_UPDATE:         "ORDER_UPDATE",
+
+  // Products
+  PRODUCT_LIST:         "PRODUCT_LIST",
+  PRODUCT_DETAIL:       "PRODUCT_DETAIL",
+  PRODUCT_FACTORY_COST: "PRODUCT_FACTORY_COST", // G-012 / G-013: factory cost fields
+
+  // Factory ledger (Cluster A — D-009)
+  FACTORY_LEDGER_VIEW:  "FACTORY_LEDGER_VIEW",
+  FACTORY_PAYMENTS:     "FACTORY_PAYMENTS",
+  FACTORY_CREDITS:      "FACTORY_CREDITS",
+  FACTORY_AUDIT_LOG:    "FACTORY_AUDIT_LOG",
+
+  // Dashboard tabs (D-010) — FRONTEND_ONLY: no backend endpoint gates these tabs
+  DASHBOARD_OPERATIONS_TAB: "DASHBOARD_OPERATIONS_TAB",
+  DASHBOARD_PAYMENTS_TAB:   "DASHBOARD_PAYMENTS_TAB",
+
+  // Portal access — FRONTEND_ONLY: frontend routing only, no single backend gate
+  CLIENT_PORTAL_ACCESS:  "CLIENT_PORTAL_ACCESS",
+  FACTORY_PORTAL_ACCESS: "FACTORY_PORTAL_ACCESS",
+
+  // Settings / admin
+  USER_MANAGEMENT: "USER_MANAGEMENT",
+  SYSTEM_SETTINGS: "SYSTEM_SETTINGS",
+} as const;
+
+export type Resource = (typeof Resource)[keyof typeof Resource];
+
+// ---------------------------------------------------------------------------
+// Matrix
+// ---------------------------------------------------------------------------
+
+/** Map from Resource to the set of roles allowed (excluding SUPER_ADMIN bypass). */
+export const PERMISSION_MATRIX: Readonly<Record<Resource, readonly UserRole[]>> = {
+
+  // --- Orders ---
+  // GET /api/orders/ — get_scoped_query (no role check; CLIENT/FACTORY scoped by RLS)
+  // GET /api/orders/{id}/ — same; FACTORY users can access orders for their factory_id
+  // VERIFIED: orders.py list_orders / get_order + security.py get_scoped_query
+  [Resource.ORDER_LIST]:   [ADMIN, OPERATIONS, FINANCE, CLIENT, FACTORY],
+  [Resource.ORDER_DETAIL]: [ADMIN, OPERATIONS, FINANCE, CLIENT, FACTORY],
+
+  // POST /api/orders/ — role not in ("ADMIN","SUPER_ADMIN","OPERATIONS") → 403
+  // PUT  /api/orders/{id}/ — same check
+  // VERIFIED: orders.py create_order (line 905), update_order (line 1003)
+  [Resource.ORDER_CREATE]: [ADMIN, OPERATIONS],
+  [Resource.ORDER_UPDATE]: [ADMIN, OPERATIONS],
+
+  // --- Products ---
+  // GET /api/products/ — get_current_user only; CLIENT brand-scoped; FACTORY sees all
+  // GET /api/products/{id}/ — no role check (only get_db dep)
+  // VERIFIED: products.py list_products / get_product
+  [Resource.PRODUCT_LIST]:   [ADMIN, OPERATIONS, FINANCE, CLIENT, FACTORY],
+  [Resource.PRODUCT_DETAIL]: [ADMIN, OPERATIONS, FINANCE, CLIENT, FACTORY],
+
+  // Serializer field stripping (not an endpoint gate — applies in every product response):
+  //   CLIENT_HIDDEN_FIELDS ∋ factory_cost_* fields → stripped for CLIENT role
+  //   FACTORY_HIDDEN_FIELDS ∋ factory_cost_* fields → stripped for FACTORY role
+  // Remaining internal roles (ADMIN, OPERATIONS, FINANCE) receive unstripped data.
+  // VERIFIED: core/serializers.py + patches G-011–G-014 + G-017
+  [Resource.PRODUCT_FACTORY_COST]: [ADMIN, OPERATIONS, FINANCE],
+
+  // --- Factory ledger (D-009 / Cluster A) ---
+  // All 9 endpoints carry Depends(require_factory_financial) = [SUPER_ADMIN, FINANCE].
+  // Router-level require_finance = [SUPER_ADMIN, ADMIN, FINANCE] is the outer gate;
+  // endpoint-level require_factory_financial is the inner gate.
+  // Effective access = SUPER_ADMIN | FINANCE. ADMIN is deliberately excluded (D-004).
+  // VERIFIED: finance.py lines 728, 808, 854, 891, 956, 1388, 1414, 1479, 1839
+  //           + D-009 decision record (DECISIONS.md § D-009)
+  [Resource.FACTORY_LEDGER_VIEW]: [FINANCE],
+  [Resource.FACTORY_PAYMENTS]:    [FINANCE],
+  [Resource.FACTORY_CREDITS]:     [FINANCE],
+  [Resource.FACTORY_AUDIT_LOG]:   [FINANCE],
+
+  // --- Dashboard tabs (D-010) — FRONTEND_ONLY ---
+  // backend/routers/dashboard.py uses only get_current_user — no tab-level gate.
+  // These entries represent the FRONTEND visibility rule per D-010:
+  //   estProfit / Factory Costs panel → SUPER_ADMIN | ADMIN | FINANCE (hide from OPERATIONS)
+  //   Factory Payments section        → SUPER_ADMIN | ADMIN | FINANCE (hide from OPERATIONS)
+  // VERIFIED: D-010 decision record (DECISIONS.md § D-010); dashboard.py has no tab gate
+  [Resource.DASHBOARD_OPERATIONS_TAB]: [ADMIN, OPERATIONS],  // FRONTEND_ONLY
+  [Resource.DASHBOARD_PAYMENTS_TAB]:   [ADMIN, FINANCE],     // FRONTEND_ONLY
+
+  // --- Portal access — FRONTEND_ONLY ---
+  // These gate which portal layout is rendered. No single backend endpoint maps to them.
+  // CLIENT portal: accessible only by CLIENT role users
+  // FACTORY portal: accessible only by FACTORY role users
+  // INVENTED (frontend routing concept — no backend counterpart)
+  [Resource.CLIENT_PORTAL_ACCESS]:  [CLIENT],   // FRONTEND_ONLY / INVENTED
+  [Resource.FACTORY_PORTAL_ACCESS]: [FACTORY],  // FRONTEND_ONLY / INVENTED
+
+  // --- Admin resources ---
+  // /api/users:    mounted with Depends(require_admin) = require_role([ADMIN])
+  //                + all endpoints also carry Depends(require_role([UserRole.ADMIN]))
+  // /api/settings: mounted with Depends(require_admin) = require_role([ADMIN])
+  // Effective: ADMIN (SUPER_ADMIN passes via has_any_role bypass)
+  // VERIFIED: main.py lines 238-241; users.py lines 62, 90, 106
+  [Resource.USER_MANAGEMENT]: [ADMIN],
+  [Resource.SYSTEM_SETTINGS]: [ADMIN],
+
+} as const;
+
+/**
+ * Convenience: check if a role can access a resource using the matrix.
+ * SUPER_ADMIN bypasses all checks.
+ *
+ * @example
+ * canAccess(UserRole.FINANCE, Resource.FACTORY_LEDGER_VIEW) // true
+ * canAccess(UserRole.ADMIN,   Resource.FACTORY_LEDGER_VIEW) // false  (D-004: ADMIN excluded)
+ * canAccess(UserRole.CLIENT,  Resource.FACTORY_LEDGER_VIEW) // false
+ */
+export function canAccess(role: UserRole, resource: Resource): boolean {
+  if (role === SUPER_ADMIN) return true;
+  return PERMISSION_MATRIX[resource].includes(role);
+}
+
+/**
+ * Return all roles that have access to a given resource (including SUPER_ADMIN).
+ */
+export function allowedRoles(resource: Resource): readonly UserRole[] {
+  const base = PERMISSION_MATRIX[resource];
+  if (base.includes(SUPER_ADMIN)) return base;
+  return [SUPER_ADMIN, ...base] as const;
+}

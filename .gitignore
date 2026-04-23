@@ -1,0 +1,65 @@
+# ─── Node / pnpm ────────────────────────────────────────────
+node_modules/
+.next/
+.turbo/
+dist/
+build/
+.cache/
+*.tsbuildinfo
+.pnpm-store/
+
+# ─── Python ──────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+htmlcov/
+.coverage
+
+# ─── Environment / secrets ───────────────────────────────────
+.env
+.env.local
+.env.production
+.env.staging
+# Keep examples: .env.example and .env.local.example are safe to commit
+!**/.env.example
+!**/.env.local.example
+
+# Specific files with real secrets/tokens
+ERP_V1/backend/.env
+ERP_V1/scripts/security-evidence/
+
+# ─── Nested git repos (not submodules) ───────────────────────
+ERP_V1/.claude/everything-claude-code/
+ERP_V1/IMP-ERP_V1.1/
+
+# ─── Test / coverage output ──────────────────────────────────
+coverage/
+test-results/
+playwright-report/
+blob-report/
+
+# ─── Logs ────────────────────────────────────────────────────
+*.log
+logs/
+
+# ─── OS cruft ────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ─── IDE ─────────────────────────────────────────────────────
+.idea/
+*.swp
+*.swo
+
+# ─── Misc build / tooling ────────────────────────────────────
+.vercel/
+.netlify/
+*.local
+graphify-out/

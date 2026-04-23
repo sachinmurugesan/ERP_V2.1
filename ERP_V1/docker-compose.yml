@@ -1,0 +1,167 @@
+# ============================================
+# HarvestERP — Docker Compose (Development)
+# Strangler-fig proxy: nginx routes between Vue and Next.js.
+#
+# Services
+#   db        PostgreSQL 16 (unchanged)
+#   api       FastAPI backend on :8001 (unchanged)
+#   vue       Vue 3 / Vite dev server on :5173 (renamed from frontend)
+#   nextjs    Next.js 15 dev server on :3000 (new — Task 9)
+#   nginx     Reverse proxy on :80 — routes migrated paths to nextjs,
+#             everything else to vue (new — Task 9)
+#
+# Entry point: http://localhost
+#   /login, /dashboard, /_next/*, /api/auth/* → Next.js
+#   /api/*                                    → FastAPI backend
+#   Everything else                           → Vue
+#
+# Deviations from task spec (flagged):
+#   - BACKEND_UPSTREAM uses port 8001 (not 8000); backend/Dockerfile exposes 8001
+#   - harvesterp-web is at ../harvesterp-web (sibling dir, not sub-dir of ERP_V1)
+#   - nextjs volume mounts full ../harvesterp-web to /workspace (not just
+#     apps/web) because pnpm workspace packages (packages/*) must be reachable
+# ============================================
+
+services:
+
+  # ----------------------------------------
+  # PostgreSQL 16 Database
+  # ----------------------------------------
+  db:
+    image: postgres:16-alpine
+    container_name: harvestdb
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: harvestdb
+      POSTGRES_USER: erp
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-erp_secure_password}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U erp -d harvestdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ----------------------------------------
+  # FastAPI Backend — port 8001 (per backend/Dockerfile)
+  # ----------------------------------------
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: harvest-api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://erp:${DB_PASSWORD:-erp_secure_password}@db:5432/harvestdb
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-me-in-development}
+      UPLOAD_DIR: /data/uploads
+      MAX_UPLOAD_SIZE: ${MAX_UPLOAD_SIZE:-629145600}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost,http://localhost:3000}
+      WORKERS: ${WORKERS:-2}
+      WORKER_TIMEOUT: ${WORKER_TIMEOUT:-60}
+      DEBUG: ${DEBUG:-true}
+    # Expose directly for debugging; nginx also routes /api/ to this service
+    ports:
+      - "${API_PORT:-8001}:8001"
+    volumes:
+      - ./backend:/app
+      - uploads:/data/uploads
+
+  # ----------------------------------------
+  # Vue 3 — Vite dev server on :5173 (hot-reload via nginx WebSocket proxy)
+  # Internal only — nginx routes traffic to it; no external port needed.
+  # ----------------------------------------
+  vue:
+    image: node:20-alpine
+    container_name: harvest-vue
+    working_dir: /app
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      VITE_API_URL: http://api:8001
+    expose:
+      - "5173"
+    volumes:
+      - ./frontend:/app
+      - vue_modules:/app/node_modules
+    command: sh -c "npm install && npx vite --host 0.0.0.0 --port 5173"
+
+  # ----------------------------------------
+  # Next.js 15 — pnpm dev on :3000 (hot-reload via nginx WebSocket proxy)
+  # Mounts the full harvesterp-web monorepo so pnpm workspace packages
+  # (packages/lib, packages/sdk) are resolvable alongside apps/web.
+  # Internal only — nginx routes /login, /dashboard, /_next/* etc. to it.
+  # ----------------------------------------
+  nextjs:
+    build:
+      context: ../harvesterp-web
+      dockerfile: apps/web/Dockerfile
+    container_name: harvest-nextjs
+    working_dir: /workspace
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      HARVESTERP_API_URL: http://api:8001
+      HARVESTERP_COOKIE_SECURE: "false"
+      NODE_ENV: development
+    expose:
+      - "3000"
+    volumes:
+      - ../harvesterp-web:/workspace
+      - nextjs_node_modules:/workspace/node_modules
+      - nextjs_web_next:/workspace/apps/web/.next
+    command: >
+      sh -c "
+        corepack enable &&
+        pnpm install --frozen-lockfile &&
+        pnpm --filter @harvesterp/web dev
+      "
+
+  # ----------------------------------------
+  # nginx reverse proxy — strangler-fig router
+  # Port 80 is the single dev entry point.
+  # Routing rules defined in nginx/nginx.dev.conf.
+  # ----------------------------------------
+  nginx:
+    image: nginx:alpine
+    container_name: harvest-nginx
+    restart: unless-stopped
+    ports:
+      - "${NGINX_PORT:-80}:80"
+    volumes:
+      - ./nginx/nginx.dev.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - api
+      - vue
+      - nextjs
+    environment:
+      # Documented upstream addresses (informational — nginx.dev.conf uses
+      # hardcoded upstream blocks that match these values).
+      NEXTJS_UPSTREAM: "http://nextjs:3000"
+      VUE_UPSTREAM: "http://vue:5173"
+      BACKEND_UPSTREAM: "http://api:8001"
+
+# ----------------------------------------
+# Named volumes
+# ----------------------------------------
+volumes:
+  pgdata:
+    driver: local
+  uploads:
+    driver: local
+  vue_modules:
+    driver: local
+  nextjs_node_modules:
+    driver: local
+  nextjs_web_next:
+    driver: local

@@ -1,0 +1,29 @@
+@import "tailwindcss";
+@import "primeicons/primeicons.css";
+
+/* ========================================
+   HarvestERP - Global Styles
+   ======================================== */
+
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: #f1f5f9;
+  color: #1e293b;
+}
+
+#app {
+  min-height: 100vh;
+}
+
+/* Stage progress bar colors */
+.stage-draft { --stage-color: #6b7280; }
+.stage-pending-pi { --stage-color: #f59e0b; }
+.stage-pi-sent { --stage-color: #3b82f6; }
+.stage-advance { --stage-color: #8b5cf6; }
+.stage-production { --stage-color: #ec4899; }
+.stage-booked { --stage-color: #14b8a6; }
+.stage-sailing { --stage-color: #06b6d4; }
+.stage-customs { --stage-color: #f97316; }
+.stage-delivered { --stage-color: #22c55e; }
+.stage-completed { --stage-color: #10b981; }

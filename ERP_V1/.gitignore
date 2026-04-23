@@ -1,0 +1,54 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Database
+*.db
+*.sqlite
+*.db-shm
+*.db-wal
+
+# Node
+node_modules/
+dist/
+
+# Uploads (user data, not code)
+backend/uploads/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+
+# First-run admin credentials (generated once, must be deleted after login)
+FIRST_RUN_CREDENTIALS.txt
+backend/FIRST_RUN_CREDENTIALS.txt
+
+# Old/backup directories
+backend_old/
+frontend_old_vanilla/
+
+# Test documents (user's real data)
+Test Document/
+
+# User documents
+*.docx
+
+# Claude internal
+.claude/
+
+# Security evidence capture (may contain real customer data)
+scripts/security-evidence/before/
+scripts/security-evidence/after/
+scripts/security-evidence/.env.capture

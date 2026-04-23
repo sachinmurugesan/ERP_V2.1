@@ -1,0 +1,36 @@
+{
+  "name": "@harvesterp/sdk",
+  "version": "0.0.0",
+  "private": true,
+  "description": "TypeScript SDK generated from HarvestERP FastAPI OpenAPI spec — D-001",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "fetch-spec": "npx tsx scripts/fetch-spec.ts",
+    "generate": "npx tsx scripts/fetch-spec.ts && npx tsx scripts/generate.ts",
+    "build": "tsup src/index.ts --format esm --dts --clean",
+    "test": "vitest run --coverage",
+    "test:watch": "vitest",
+    "type-check": "tsc --noEmit",
+    "lint": "eslint src tests --ext .ts"
+  },
+  "dependencies": {
+    "openapi-fetch": "^0.13.8",
+    "openapi-typescript-helpers": "^0.0.15"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^2.1.9",
+    "openapi-typescript": "^7.13.0",
+    "tsup": "^8.5.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.9"
+  }
+}

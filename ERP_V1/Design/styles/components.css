@@ -1,0 +1,94 @@
+/* AB_SPARES ERP — Component styles */
+
+/* ─── Buttons ─── */
+.btn { display:inline-flex; align-items:center; justify-content:center; gap:8px;
+  font-family: var(--f-sans); font-weight:600; font-size:13px; letter-spacing:-.1px;
+  padding: 0 14px; height:36px; border-radius: var(--r-md); border:1px solid transparent;
+  cursor:pointer; transition: background .15s, border-color .15s, color .15s, box-shadow .15s;
+  white-space:nowrap;
+}
+.btn-sm { height:28px; padding:0 10px; font-size:12px; border-radius: var(--r-sm); }
+.btn-lg { height:44px; padding:0 18px; font-size:14px; }
+.btn-primary { background: var(--brand-800); color: #fff; }
+.btn-primary:hover { background: var(--brand-900); }
+.btn-secondary { background: var(--bg-elev); color: var(--fg); border-color: var(--border); }
+.btn-secondary:hover { background: var(--bg-sunken); border-color: var(--border-strong); }
+.btn-ghost { background: transparent; color: var(--fg-muted); }
+.btn-ghost:hover { background: var(--bg-sunken); color: var(--fg); }
+.btn-accent { background: var(--brand-500); color: #fff; }
+.btn-accent:hover { background: var(--brand-600); }
+.btn-danger { background: var(--bg-elev); color: var(--err); border-color: var(--border); }
+
+/* ─── Badges / chips ─── */
+.chip { display:inline-flex; align-items:center; gap:6px; height:22px; padding:0 8px;
+  border-radius: var(--r-full); font-size:11px; font-weight:600; letter-spacing:.1px;
+  background: var(--bg-sunken); color: var(--fg-muted); border:1px solid var(--border);
+}
+.chip-ok   { background: color-mix(in oklch, var(--ok) 14%, transparent); color: var(--ok); border-color: color-mix(in oklch, var(--ok) 25%, transparent); }
+.chip-warn { background: color-mix(in oklch, var(--warn) 16%, transparent); color: #B45309; border-color: color-mix(in oklch, var(--warn) 30%, transparent); }
+.theme-dark .chip-warn { color: #FBBF24; }
+.chip-err  { background: color-mix(in oklch, var(--err) 14%, transparent); color: var(--err); border-color: color-mix(in oklch, var(--err) 25%, transparent); }
+.chip-info { background: color-mix(in oklch, var(--info) 14%, transparent); color: var(--info); border-color: color-mix(in oklch, var(--info) 25%, transparent); }
+.chip-accent { background: var(--brand-100); color: var(--brand-800); border-color: var(--brand-200); }
+.theme-dark .chip-accent { background: color-mix(in oklch, var(--brand-500) 18%, transparent); color: var(--brand-300); border-color: color-mix(in oklch, var(--brand-500) 30%, transparent); }
+.chip-dot::before { content:''; width:6px; height:6px; border-radius:50%; background: currentColor; }
+
+/* ─── Cards ─── */
+.card { background: var(--bg-elev); border:1px solid var(--border); border-radius: var(--r-lg);
+  box-shadow: var(--sh-xs);
+}
+.card-pad { padding: 20px; }
+.card-pad-sm { padding: 14px 16px; }
+
+/* ─── Inputs ─── */
+.input { height:36px; padding:0 12px; border-radius: var(--r-md);
+  border:1px solid var(--border); background: var(--bg-elev); color: var(--fg);
+  font-family: var(--f-sans); font-size:13px; outline:none; width:100%;
+}
+.input:focus { border-color: var(--brand-500); box-shadow: 0 0 0 3px var(--ring); }
+.input-search { padding-left: 34px; background-repeat:no-repeat; background-position: 11px center; }
+
+.label { font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.6px;
+  color: var(--fg-muted); }
+
+/* ─── Table ─── */
+.tbl { width:100%; border-collapse:collapse; font-size:13px; font-variant-numeric: tabular-nums; }
+.tbl thead th { text-align:left; font-weight:600; font-size:11px; text-transform:uppercase;
+  letter-spacing:.6px; color: var(--fg-muted); padding:10px 12px; border-bottom:1px solid var(--border);
+  background: var(--bg-sunken); }
+.tbl tbody td { padding:12px; border-bottom:1px solid var(--border); vertical-align: middle; }
+.tbl tbody tr:hover { background: var(--bg-sunken); }
+
+/* ─── Sidebar nav ─── */
+.nav-item { display:flex; align-items:center; gap:10px; height:34px; padding:0 10px;
+  border-radius: var(--r-sm); color: var(--fg-muted); font-size:13px; font-weight:500;
+  cursor:pointer; transition: background .12s, color .12s;
+}
+.nav-item:hover { background: var(--bg-sunken); color: var(--fg); }
+.nav-item.active { background: var(--brand-50); color: var(--brand-800); font-weight:600; }
+.theme-dark .nav-item.active { background: color-mix(in oklch, var(--brand-500) 14%, transparent); color: var(--brand-300); }
+.nav-item .dot { width:6px; height:6px; border-radius:50%; background: var(--brand-500); margin-left:auto; }
+
+/* ─── Avatar ─── */
+.av { width:28px; height:28px; border-radius:50%; display:inline-flex; align-items:center;
+  justify-content:center; font-size:11px; font-weight:600; color:#fff;
+  background: linear-gradient(135deg, var(--brand-600), var(--brand-800));
+  flex-shrink: 0;
+}
+.av-sm { width:22px; height:22px; font-size:10px; }
+.av-lg { width:36px; height:36px; font-size:13px; }
+.av-stack { display:inline-flex; }
+.av-stack .av { box-shadow: 0 0 0 2px var(--bg-elev); margin-left:-6px; }
+.av-stack .av:first-child { margin-left:0; }
+
+/* ─── KPI ─── */
+.kpi-label { font-size:12px; font-weight:500; color: var(--fg-muted); letter-spacing:.1px; }
+.kpi-value { font-size:30px; font-weight:700; letter-spacing:-0.8px; color: var(--fg);
+  font-variant-numeric: tabular-nums; line-height:1.1; margin-top:6px; }
+.kpi-sub { display:flex; align-items:center; gap:6px; margin-top:8px; font-size:12px; }
+.kpi-delta-up { color: var(--ok); font-weight:600; }
+.kpi-delta-down { color: var(--err); font-weight:600; }
+
+/* ─── Misc ─── */
+.divider { height:1px; background: var(--border); border:0; }
+.sr-hidden { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); }
