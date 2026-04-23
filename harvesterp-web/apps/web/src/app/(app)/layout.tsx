@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { getSessionToken } from "@/lib/session";
 import { getServerClient } from "@/lib/api-server";
 import { hasRouteAccess } from "@/lib/auth-guards";
+import { resolveDisplayName } from "@/lib/display-name";
 import { NavigationSidebar } from "@/components/shells/navigation-sidebar";
 import { AppTopbar } from "@/components/shells/app-topbar";
 import type { SidebarUser } from "@/components/shells/sidebar";
@@ -38,15 +39,23 @@ export default async function AppLayout({
 
   // Fetch user info — gracefully degrade when backend is offline
   let user: SidebarUser = { name: "User", roleLabel: "Member" };
+  let userEmail: string | undefined;
   let userRole: string | undefined;
+  let displayName = "there";
   try {
     const client = await getServerClient();
     const result = await client.GET("/api/auth/me");
     if (result.data) {
-      const u = result.data as { email?: string; role?: string };
+      const u = result.data as {
+        email?: string;
+        role?: string;
+        full_name?: string | null;
+      };
       userRole = u.role;
+      userEmail = u.email;
+      displayName = resolveDisplayName(u);
       user = {
-        name: u.email ?? "User",
+        name: displayName,
         roleLabel: u.role ?? "Member",
       };
     }
@@ -71,7 +80,11 @@ export default async function AppLayout({
           minWidth: 0,
         }}
       >
-        <AppTopbar title="HarvestERP" userEmail={user.name} />
+        <AppTopbar
+          title="HarvestERP"
+          userName={displayName}
+          {...(userEmail !== undefined ? { userEmail } : {})}
+        />
         <main
           style={{
             flex: 1,

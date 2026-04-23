@@ -32,7 +32,7 @@ Every page migration PR must update this file.
 | Path | Migrated | PR | Notes |
 |------|----------|----|-------|
 | `/login` | 2026-04-23 | Task 7/9 | Login page scaffold |
-| `/dashboard` | 2026-04-23 | Task 7/9 | Dashboard placeholder |
+| `/dashboard` | 2026-04-23 | feat/migrate-dashboard | Internal operations dashboard (5 KPI counters, client-inquiries attention strip, active shipments + recent activity with 30 s polling). Client and factory dashboards still on Vue — follow-up migrations. |
 
 ---
 
