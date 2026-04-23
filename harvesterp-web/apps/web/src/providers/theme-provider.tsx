@@ -30,16 +30,17 @@ const ThemeContext = createContext<ThemeContextValue>({
  * Topbar's `onToggleTheme` callback delegates here via `useTheme()`.
  */
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>("light");
+  const [theme, setTheme] = useState<Theme>(() =>
+    typeof window !== "undefined" &&
+    localStorage.getItem("harvesterp-theme") === "dark"
+      ? "dark"
+      : "light"
+  );
 
-  // Sync from localStorage on mount
+  // Apply DOM class whenever theme changes (includes initial mount)
   useEffect(() => {
-    const stored = localStorage.getItem("harvesterp-theme");
-    if (stored === "dark") {
-      setTheme("dark");
-      document.documentElement.classList.add("theme-dark");
-    }
-  }, []);
+    document.documentElement.classList.toggle("theme-dark", theme === "dark");
+  }, [theme]);
 
   const toggleTheme = () => {
     setTheme((current) => {
