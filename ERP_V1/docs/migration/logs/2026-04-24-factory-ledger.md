@@ -469,6 +469,16 @@ _FINANCE-role live verification skipped — no FINANCE user in the seeded DB; un
 - **Date resolved:** 2026-04-24 20:27
 - **Tests added:** 5 new routing-target tests.
 
+### Issue 6: `per_page=500` exceeds backend cap → factory dropdown empty
+
+- **Date raised:** 2026-04-24 21:12 (pre-merge FINANCE live verification)
+- **Problem:** After seeding a factory in the DB, the Factory Ledger dropdown still showed only the placeholder. Dropdown was populated by RSC's `fetchFactories()` calling `/api/factories/?per_page=500`.
+- **Root cause:** Backend caps `per_page` at 200 (Pydantic query validator: `le=200`). Value 500 triggered a 422 validation error. `fetchFactories()` has a try/catch that returns `[]` silently on failure, hiding the actual issue from the user.
+- **Fix applied:** lowered to `per_page: 200` with inline comment noting the cap and that pagination will be needed if factory count ever approaches it.
+- **Date resolved:** 2026-04-24 21:14
+- **Verified:** factory dropdown now populates; selecting the seeded factory renders the ledger with empty-state (no orders in this test DB) + zero-valued summary cards; PDF/Excel buttons correctly disabled for empty transactions. No console errors.
+- **Tests added:** none added specifically — the bug surfaced from integration (RSC + real backend); unit tests mock the endpoint and can't detect a query-param validation mismatch. Filing a follow-up thought (not a test) on whether the `fetchFactories()` silent-catch should surface errors to a page-level banner, matching the error-banner pattern used inside `FactoryLedgerClient`. Deferred as a polish item.
+
 ---
 
 ## Proposed rules for CONVENTIONS.md (if any)

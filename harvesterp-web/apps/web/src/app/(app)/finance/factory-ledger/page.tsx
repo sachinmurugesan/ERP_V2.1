@@ -30,11 +30,13 @@ async function resolveUserRole(): Promise<UserRole | undefined> {
 }
 
 async function fetchFactories(): Promise<FactorySummary[]> {
+  // Backend caps per_page at 200. For now the dropdown fits comfortably in
+  // that window; paginate if factory count ever approaches the cap.
   try {
     const client = await getServerClient();
     const res = await client.getJson<FactoriesListResponse>(
       "/api/factories/",
-      { params: { per_page: 500 } },
+      { params: { per_page: 200 } },
     );
     return (res.items ?? []).filter((f) => f.is_active !== false);
   } catch {
