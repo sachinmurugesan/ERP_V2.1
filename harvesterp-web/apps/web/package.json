@@ -15,6 +15,8 @@
   "dependencies": {
     "@harvesterp/lib": "workspace:*",
     "@harvesterp/sdk": "workspace:*",
+    "@hookform/resolvers": "^5.2.2",
+    "@radix-ui/react-dialog": "^1.1.0",
     "@radix-ui/react-dropdown-menu": "^2.1.0",
     "@radix-ui/react-slot": "^1.1.0",
     "@tanstack/react-query": "^5.64.0",
@@ -25,10 +27,13 @@
     "next": "^15.1.0",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
-    "tailwind-merge": "^2.5.0"
+    "react-hook-form": "^7.73.1",
+    "tailwind-merge": "^2.5.0",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.5",
+    "@rollup/wasm-node": "^4.60.2",
     "@testing-library/jest-dom": "^6.5.0",
     "@testing-library/react": "^16.0.0",
     "@testing-library/user-event": "^14.5.0",
