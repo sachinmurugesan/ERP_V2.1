@@ -18,6 +18,20 @@ Project rulebook for HarvestERP. Read at the start of every session by Claude Co
 - Never use Unicode escapes (`\uXXXX`) in JSX attribute string values. Use the actual character (`—`, `€`, `₹`) or define as a named constant outside the JSX. Unicode escapes in attribute strings render as literal text in some React/Next.js rendering paths.
 - Comments explain WHY, not WHAT.
 
+### Rule R-14: RSC prop forwarding under `exactOptionalPropertyTypes`
+
+Since `tsconfig` has `exactOptionalPropertyTypes: true`, when forwarding optional props from a Server Component to a Client Component, use conditional spread to avoid passing `undefined`:
+
+```tsx
+// WRONG
+<Child foo={maybeUndefined} />
+
+// RIGHT
+<Child {...(maybeUndefined ? { foo: maybeUndefined } : {})} />
+```
+
+Rationale: with `exactOptionalPropertyTypes`, the types `{foo?: T}` and `{foo: T | undefined}` are different. Conditional spread keeps RSC → Client boundaries strictly typed.
+
 **Example — import order:**
 
 ```ts
