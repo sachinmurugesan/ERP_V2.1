@@ -15,6 +15,7 @@ Project rulebook for HarvestERP. Read at the start of every session by Claude Co
 - No magic numbers. Extract to named constants.
 - `async`/`await`, not `.then()` chains.
 - Never swallow errors. Rethrow or handle explicitly.
+- Never use Unicode escapes (`\uXXXX`) in JSX attribute string values. Use the actual character (`—`, `€`, `₹`) or define as a named constant outside the JSX. Unicode escapes in attribute strings render as literal text in some React/Next.js rendering paths.
 - Comments explain WHY, not WHAT.
 
 **Example — import order:**
@@ -313,6 +314,7 @@ Libraries added on top of this stack require user approval. Do not introduce new
 - Integration tests in `tests/integration/`, skipped in CI unless service is running.
 - 80%+ coverage on new code — don't chase 100%.
 - Every bug fix includes a regression test.
+- Responsive tables: when testing a table that renders different layouts at different breakpoints, tests must scope queries to one layout (desktop OR mobile) with specific role or test-id selectors, not rely on media queries. jsdom does not honor media queries and renders all layouts simultaneously, causing duplicate-match failures.
 
 ---
 
