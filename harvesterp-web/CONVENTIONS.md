@@ -406,6 +406,66 @@ Rules that change ad-hoc produce inconsistency. Rules that change deliberately, 
 
 ---
 
+## Section 10: Approved Migration Patterns
+
+Rules promoted out of migration logs via the Section 9 Rule Change Protocol. Each rule names the migrations it came from so future migrations can understand the context.
+
+### Empty-state CTA rule
+
+_Approved from: dashboard migration, orders-list migration._
+
+Empty states always use a CTA pattern. Never ship a plain "No data" or "No results" text alone.
+
+**Pattern A — no-data-yet empty state** (the resource has never had rows):
+- Icon, sized ~40–48px, in `var(--fg-muted)`, relevant to the content type.
+- Heading: `No [things] yet.` (e.g. "No orders yet.", "No invoices yet.")
+- Primary CTA button: `Create your first [thing]`. Wrap in `<RoleGate>` when creation requires a specific permission.
+- Optional muted secondary line for context (e.g. "When you create an order it will appear here.").
+
+**Pattern B — filtered empty state** (rows exist, but the current filter/search hides them all):
+- Heading: `No [things] match this filter.`
+- Ghost button: `Clear filters`.
+- No CTA button — the user already expressed intent; show them how to undo it.
+
+A page with filters needs both patterns and switches between them based on whether any filter is active.
+
+### Local interface rule for untyped SDK endpoints
+
+_Approved from: dashboard migration, orders-list migration._
+
+When an SDK endpoint has an unknown response type in the OpenAPI spec (FastAPI route without `response_model=`), define a local TypeScript interface in the consuming page's `_components/types.ts` file. Never use `any` or inline type assertions for response shapes.
+
+The local interface serves as:
+- a visible contract for reviewers of the migration,
+- a type boundary for the rest of the page code, and
+- an anchor the backend can later match when it adds a real `response_model` — at which point the interface is deleted and the generated SDK type is imported instead.
+
+**Example:**
+
+```typescript
+// apps/web/src/app/(app)/orders/_components/types.ts
+export interface OrderListItem {
+  id: string;
+  order_number: string | null;
+  client_name?: string | null;
+  stage_number: number;
+  stage_name: string;
+  total_value_cny: number | null;
+  created_at: string;
+  // ...all fields the page actually reads
+}
+```
+
+Consumption uses the SDK's escape hatch:
+
+```typescript
+const response = await client.getJson<OrderListResponse>("/api/orders/", { params });
+```
+
+Not `client.GET(...)` (which would return `unknown`), and never a bare `any` cast.
+
+---
+
 ## Footer notes
 
 > **For Claude Code:** This file loads at session start. Rules here take precedence over other instructions unless user explicitly overrides. Flag conflicts to the user.
