@@ -43,7 +43,7 @@ function readFile(path: string): string {
  * Paths that MUST appear in MIGRATED_PATHS.md and have `location` blocks in
  * both nginx configs. Extend this list with each new migration PR.
  */
-const EXPECTED_MIGRATED_PATHS = ["/login", "/dashboard"];
+const EXPECTED_MIGRATED_PATHS = ["/login", "/dashboard", "/orders"];
 
 /**
  * Location block prefixes that MUST appear in every config (dev + prod).
