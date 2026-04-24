@@ -66,6 +66,8 @@ export const Resource = {
   // Products
   PRODUCT_LIST:         "PRODUCT_LIST",
   PRODUCT_DETAIL:       "PRODUCT_DETAIL",
+  PRODUCT_CREATE:       "PRODUCT_CREATE",
+  PRODUCT_UPDATE:       "PRODUCT_UPDATE",
   PRODUCT_FACTORY_COST: "PRODUCT_FACTORY_COST", // G-012 / G-013: factory cost fields
 
   // Factory ledger (Cluster A — D-009)
@@ -115,6 +117,16 @@ export const PERMISSION_MATRIX: Readonly<Record<Resource, readonly UserRole[]>> 
   // VERIFIED: products.py list_products / get_product
   [Resource.PRODUCT_LIST]:   [ADMIN, OPERATIONS, FINANCE, CLIENT, FACTORY],
   [Resource.PRODUCT_DETAIL]: [ADMIN, OPERATIONS, FINANCE, CLIENT, FACTORY],
+
+  // POST /api/products/ — G-011 Patch 10 (2026-04-22): role not in
+  //   ("ADMIN","SUPER_ADMIN","OPERATIONS") → 403. CLIENT/FACTORY rejected.
+  // Mirror of ORDER_CREATE. SUPER_ADMIN bypass applies via canAccess().
+  [Resource.PRODUCT_CREATE]: [ADMIN, OPERATIONS],
+
+  // PUT /api/products/{id}/ + DELETE /api/products/{id}/ +
+  // POST /api/products/bulk-update/ + bulk-delete/ + bin/restore +
+  // bin/permanent-delete — same G-011 gate as PRODUCT_CREATE.
+  [Resource.PRODUCT_UPDATE]: [ADMIN, OPERATIONS],
 
   // Serializer field stripping (not an endpoint gate — applies in every product response):
   //   CLIENT_HIDDEN_FIELDS ∋ factory_cost_* fields → stripped for CLIENT role

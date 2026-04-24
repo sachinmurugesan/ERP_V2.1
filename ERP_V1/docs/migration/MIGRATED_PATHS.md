@@ -27,13 +27,14 @@ Every page migration PR must update this file.
 
 ---
 
-## Currently migrated (N=3)
+## Currently migrated (N=4)
 
 | Path | Migrated | PR | Notes |
 |------|----------|----|-------|
 | `/login` | 2026-04-23 | Task 7/9 | Login page scaffold |
 | `/dashboard` | 2026-04-23 | feat/migrate-dashboard | Internal operations dashboard (5 KPI counters, client-inquiries attention strip, active shipments + recent activity with 30 s polling). Client and factory dashboards still on Vue — follow-up migrations. |
 | `/orders` | 2026-04-24 | feat/migrate-orders-list | Internal orders list (exact match only). 9 stage-group filter tabs with live counts, debounced search, 8-column table with stage chips, kebab row actions (View + role-gated Delete), typed-confirmation delete dialog, prev/next pagination. `/orders/{id}` and `/orders/new` stay on Vue — separate migrations. |
+| `/products` | 2026-04-24 | feat/migrate-products-list | Internal products list (exact match only). Parent+variant accordion, search + category + per-page filters, bulk edit (5 fields with Apply buttons) + bulk delete, same-page Bin tab toggle, 3-scenario confirm dialog (single / bulk with DELETE / bin-permanent with part-code), prev/next pagination, per-row card layout on mobile. `/products/new`, `/products/{id}/edit`, `/products/upload-excel`, and the admin duplicate-cleanup modal stay on Vue — separate migrations. |
 
 ---
 
