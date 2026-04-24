@@ -15,7 +15,7 @@ import { NextRequest } from "next/server";
 
 // ── Mocks ─────────────────────────────────────────────────────────────────────
 
-const mockGetToken = vi.fn<[], Promise<string | null>>();
+const mockGetToken = vi.fn<() => Promise<string | null>>();
 const mockGetJson = vi.fn();
 const mockPostJson = vi.fn();
 const mockPutJson = vi.fn();

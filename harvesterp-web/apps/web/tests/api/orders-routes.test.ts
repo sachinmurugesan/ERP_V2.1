@@ -31,7 +31,9 @@ async function makeRequest(
   init?: RequestInit,
 ): Promise<import("next/server").NextRequest> {
   const { NextRequest } = await import("next/server");
-  return new NextRequest(url, init);
+  // RequestInit shapes differ between lib.dom (signal: AbortSignal | null)
+  // and next/server (signal: AbortSignal); cast bridges the gap.
+  return new NextRequest(url, init as never);
 }
 
 describe("GET /api/orders", () => {
