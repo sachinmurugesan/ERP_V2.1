@@ -6,22 +6,24 @@ Several RSC data-fetch functions catch errors and return empty arrays or null, h
 
 ## Known instances
 
-1. `factory-ledger/page.tsx` `fetchFactories()` — silent catch, returns `[]` on error (caught bug: `per_page=500` → 422 → `[]`)
-2. *[potentially others — audit needed]*
+1. `app/(app)/finance/factory-ledger/page.tsx` `fetchFactories()` — silent catch returns `[]` on error. Caught during factory-ledger merge verification: `per_page=500` exceeded backend `le=200` limit, got 422, returned `[]`, dropdown appeared empty instead of showing an error. Fixed the underlying request (0d44970) but the silent-catch pattern remains.
+
+2. *[Audit other RSC fetch functions for this pattern as part of cleanup task]*
 
 ## Why this is wrong
 
-- Violates CONVENTIONS Section 1 P-002 rule (never swallow errors)
-- Makes distinguishing "no data" from "fetch failed" impossible in UI
-- Debugging requires adding `console.log` or network inspection
+- Violates CONVENTIONS.md Section 1 P-002 rule: never swallow errors
+- Makes "no data" indistinguishable from "fetch failed" in UI
+- Silent failures take longer to debug
+- A 422 / 500 / 404 should surface as an error banner, not disguised as empty data
 
 ## Correct pattern
 
-Use the `FactoryLedgerClient` banner pattern: return `{ data, error }` object, render error banner when `error` is present.
+Return `{data, error}` from the RSC fetch. Render error banner when error is present. See `FactoryLedgerClient` error banner pattern for reference.
 
 ## Priority
 
-MEDIUM. Fix before more RSC data fetches accumulate this pattern.
+MEDIUM. Fix before more RSC data fetches accumulate this pattern. Specifically audit upcoming migrations (clients list, transporters list) to avoid repeating this pattern.
 
 ## Discovered during
 
