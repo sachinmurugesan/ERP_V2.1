@@ -27,7 +27,7 @@ Every page migration PR must update this file.
 
 ---
 
-## Currently migrated (N=7)
+## Currently migrated (N=8)
 
 | Path | Migrated | PR | Notes |
 |------|----------|----|-------|
@@ -38,6 +38,7 @@ Every page migration PR must update this file.
 | `/products/new` | 2026-04-24 | feat/migrate-products-form | CREATE form and VARIANT mode (via `?parent_id={id}`). 5-section Card layout, React Hook Form + Zod validation, variant resolution dialog when an existing part code is reused. |
 | `/products/{id}` | 2026-04-24 | feat/migrate-products-form | DETAIL view — read-only presentation with Edit button (role-gated), right-sidebar image gallery + lightbox. New mode added during migration — previously Vue had no standalone detail page. |
 | `/products/{id}/edit` | 2026-04-24 | feat/migrate-products-form | EDIT form + right-sidebar image gallery with upload/delete (AlertDialog confirmation). Unsaved-changes guard on dirty form. |
+| `/finance/factory-ledger` | 2026-04-24 | feat/migrate-factory-ledger | Internal finance page gated by `FACTORY_LEDGER_VIEW` (FINANCE + SUPER_ADMIN bypass; ADMIN excluded per D-004 with dedicated `AdminForbiddenState` screen). 3-card summary (debit/credit/net), 10-column transactions table with sticky Date column on mobile horizontal scroll, xlsx/pdf downloads via new `useBlobDownload()` hook, date-range filter with asymmetry tooltip. Introduces the `<LedgerPage>` Layer 2 composed component (ported from ui-gallery + generalized with `columns` prop). Sibling finance tabs (receivables, client-ledger, payments) remain Vue. |
 
 ---
 

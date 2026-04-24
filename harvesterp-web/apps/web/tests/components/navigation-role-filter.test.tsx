@@ -12,8 +12,10 @@ import { NavigationSidebar } from "../../src/components/shells/navigation-sideba
 
 // ── Mocks ─────────────────────────────────────────────────────────────────────
 
+const pushMock = vi.fn();
+
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => ({ push: pushMock }),
   usePathname: () => "/dashboard",
 }));
 
@@ -111,5 +113,43 @@ describe("Dashboard is always visible", () => {
       renderSidebar(role);
       expect(screen.getByText("Dashboard")).toBeInTheDocument();
     });
+  });
+});
+
+// ── Route target overrides ────────────────────────────────────────────────────
+// Finance items route under /finance/*; everything else uses the item id
+// directly. Verify click → router.push hits the correct URL.
+
+describe("Navigation target URLs", () => {
+  beforeEach(() => pushMock.mockClear());
+
+  it("routes 'Factory Ledger' to /finance/factory-ledger", () => {
+    renderSidebar("FINANCE");
+    screen.getByText("Factory Ledger").click();
+    expect(pushMock).toHaveBeenCalledWith("/finance/factory-ledger");
+  });
+
+  it("routes 'Client Ledger' to /finance/client-ledger", () => {
+    renderSidebar("FINANCE");
+    screen.getByText("Client Ledger").click();
+    expect(pushMock).toHaveBeenCalledWith("/finance/client-ledger");
+  });
+
+  it("routes 'Receivables' to /finance/receivables", () => {
+    renderSidebar("FINANCE");
+    screen.getByText("Receivables").click();
+    expect(pushMock).toHaveBeenCalledWith("/finance/receivables");
+  });
+
+  it("routes 'Payments' to /finance/payments", () => {
+    renderSidebar("FINANCE");
+    screen.getByText("Payments").click();
+    expect(pushMock).toHaveBeenCalledWith("/finance/payments");
+  });
+
+  it("routes non-override items to /{id}", () => {
+    renderSidebar("SUPER_ADMIN");
+    screen.getByText("Orders").click();
+    expect(pushMock).toHaveBeenCalledWith("/orders");
   });
 });
