@@ -33,7 +33,7 @@ import { OrdersPagination } from "../../src/app/(app)/orders/_components/paginat
 import {
   StageChip,
   stageToneFor,
-} from "../../src/app/(app)/orders/_components/stage-chip";
+} from "../../src/components/composed/stage-chip";
 import { RoleGate } from "../../src/components/composed/role-gate";
 import type { OrderListItem } from "../../src/app/(app)/orders/_components/types";
 

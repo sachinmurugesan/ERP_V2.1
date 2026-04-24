@@ -6,7 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Icon } from "@/components/design-system/icon";
 import type { ActiveShipment } from "./types";
 import { formatCNY } from "./formatters";
-import { StageChip } from "./stage-chip";
+import { StageChip } from "@/components/composed/stage-chip";
 import { TableRowsSkeleton } from "./skeletons";
 import { EmptyState } from "./empty-state";
 import { ErrorCard } from "./error-card";

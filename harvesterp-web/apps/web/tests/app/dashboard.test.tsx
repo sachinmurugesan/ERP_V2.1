@@ -21,7 +21,7 @@ import { RecentActivitySection } from "../../src/app/(app)/dashboard/_components
 import {
   StageChip,
   stageToneFor,
-} from "../../src/app/(app)/dashboard/_components/stage-chip";
+} from "../../src/components/composed/stage-chip";
 import {
   formatCNY,
   formatCount,

@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import type { OrderListItem } from "./types";
-import { StageChip } from "./stage-chip";
+import { StageChip } from "@/components/composed/stage-chip";
 import { OrderKebab } from "./order-kebab";
 import {
   avatarBackgroundFor,

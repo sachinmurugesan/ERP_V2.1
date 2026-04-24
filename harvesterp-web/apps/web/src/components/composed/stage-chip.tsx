@@ -1,12 +1,16 @@
 import * as React from "react";
 
 /**
- * Stage-chip for the orders list.
+ * StageChip — shared chip for order workflow stages.
  *
- * Mirrors the implementation shipped with the dashboard migration
- * (dashboard/_components/stage-chip.tsx). Copied verbatim per the Phase 3
- * plan rather than refactored into a shared location — once a third caller
- * arrives we can lift it into `src/components/composed/`.
+ * Stages 1–14 map to semantic chip tones (neutral / warn / info / accent / ok).
+ * Stages ≥15 (DELIVERED / AFTER_SALES / COMPLETED) fall back to the neutral
+ * chip so they're distinct from Stage 1 slate but don't mis-signal urgency —
+ * see the dashboard migration's Issue 1 for the reasoning.
+ *
+ * Used by both the dashboard (Active Shipments) and the orders list. Before
+ * this lift, the component was copy-pasted into both pages; the refactor
+ * extracts it so future pages can import from one place.
  */
 
 type ChipTone =
