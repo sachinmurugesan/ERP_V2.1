@@ -21,5 +21,10 @@
   "engines": {
     "node": ">=20.0.0",
     "pnpm": ">=9.0.0"
+  },
+  "pnpm": {
+    "patchedDependencies": {
+      "rollup@4.60.2": "patches/rollup@4.60.2.patch"
+    }
   }
 }

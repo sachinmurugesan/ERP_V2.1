@@ -27,14 +27,17 @@ Every page migration PR must update this file.
 
 ---
 
-## Currently migrated (N=4)
+## Currently migrated (N=7)
 
 | Path | Migrated | PR | Notes |
 |------|----------|----|-------|
 | `/login` | 2026-04-23 | Task 7/9 | Login page scaffold |
 | `/dashboard` | 2026-04-23 | feat/migrate-dashboard | Internal operations dashboard (5 KPI counters, client-inquiries attention strip, active shipments + recent activity with 30 s polling). Client and factory dashboards still on Vue — follow-up migrations. |
 | `/orders` | 2026-04-24 | feat/migrate-orders-list | Internal orders list (exact match only). 9 stage-group filter tabs with live counts, debounced search, 8-column table with stage chips, kebab row actions (View + role-gated Delete), typed-confirmation delete dialog, prev/next pagination. `/orders/{id}` and `/orders/new` stay on Vue — separate migrations. |
-| `/products` | 2026-04-24 | feat/migrate-products-list | Internal products list (exact match only). Parent+variant accordion, search + category + per-page filters, bulk edit (5 fields with Apply buttons) + bulk delete, same-page Bin tab toggle, 3-scenario confirm dialog (single / bulk with DELETE / bin-permanent with part-code), prev/next pagination, per-row card layout on mobile. `/products/new`, `/products/{id}/edit`, `/products/upload-excel`, and the admin duplicate-cleanup modal stay on Vue — separate migrations. |
+| `/products` | 2026-04-24 | feat/migrate-products-list | Internal products list (exact match only). Parent+variant accordion, search + category + per-page filters, bulk edit (5 fields with Apply buttons) + bulk delete, same-page Bin tab toggle, 3-scenario confirm dialog (single / bulk with DELETE / bin-permanent with part-code), prev/next pagination, per-row card layout on mobile. `/products/upload-excel` and the admin duplicate-cleanup modal stay on Vue — separate migrations. |
+| `/products/new` | 2026-04-24 | feat/migrate-products-form | CREATE form and VARIANT mode (via `?parent_id={id}`). 5-section Card layout, React Hook Form + Zod validation, variant resolution dialog when an existing part code is reused. |
+| `/products/{id}` | 2026-04-24 | feat/migrate-products-form | DETAIL view — read-only presentation with Edit button (role-gated), right-sidebar image gallery + lightbox. New mode added during migration — previously Vue had no standalone detail page. |
+| `/products/{id}/edit` | 2026-04-24 | feat/migrate-products-form | EDIT form + right-sidebar image gallery with upload/delete (AlertDialog confirmation). Unsaved-changes guard on dirty form. |
 
 ---
 

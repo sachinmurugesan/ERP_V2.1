@@ -43,7 +43,23 @@ function readFile(path: string): string {
  * Paths that MUST appear in MIGRATED_PATHS.md and have `location` blocks in
  * both nginx configs. Extend this list with each new migration PR.
  */
-const EXPECTED_MIGRATED_PATHS = ["/login", "/dashboard", "/orders", "/products"];
+const EXPECTED_MIGRATED_PATHS = [
+  "/login",
+  "/dashboard",
+  "/orders",
+  "/products",
+  "/products/new",
+];
+
+/**
+ * Regex-matched (dynamic) paths. Each entry is a (human-readable ID, nginx
+ * regex body). The tests verify the regex literal appears in both configs
+ * (dev + prod, prod is 3x for the three portals).
+ */
+const EXPECTED_DYNAMIC_ROUTES: Array<[string, string]> = [
+  ["/products/{id}", "^/products/[^/]+$"],
+  ["/products/{id}/edit", "^/products/[^/]+/edit$"],
+];
 
 /**
  * Location block prefixes that MUST appear in every config (dev + prod).
@@ -88,7 +104,14 @@ describe("nginx/nginx.dev.conf", () => {
   for (const path of EXPECTED_MIGRATED_PATHS) {
     it(`has location block for migrated path: ${path}`, () => {
       // Exact match: location = /path
-      expect(conf).toMatch(new RegExp(`location\\s*=\\s*${path.replace("/", "\\/")}\\s*\\{`));
+      const escaped = path.replace(/\//g, "\\/");
+      expect(conf).toMatch(new RegExp(`location\\s*=\\s*${escaped}\\s*\\{`));
+    });
+  }
+
+  for (const [id, pattern] of EXPECTED_DYNAMIC_ROUTES) {
+    it(`has regex location block for dynamic route: ${id}`, () => {
+      expect(conf).toContain(pattern);
     });
   }
 
@@ -155,10 +178,23 @@ describe("nginx/nginx.conf (production)", () => {
 
   it("has location blocks for all migrated paths (at least one occurrence per path)", () => {
     for (const path of EXPECTED_MIGRATED_PATHS) {
-      const pattern = new RegExp(`location\\s*=\\s*${path.replace("/", "\\/")}`, "g");
+      const escaped = path.replace(/\//g, "\\/");
+      const pattern = new RegExp(`location\\s*=\\s*${escaped}(?:\\s|\\{)`, "g");
       const matches = conf.match(pattern);
       // Expect 3 occurrences — one per portal server block (admin/client/factory)
       expect(matches, `Expected 3 location blocks for ${path}`).toHaveLength(3);
+    }
+  });
+
+  it("has regex location blocks for all dynamic routes (3 portals each)", () => {
+    for (const [id, pattern] of EXPECTED_DYNAMIC_ROUTES) {
+      const escapedPattern = pattern.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const regex = new RegExp(escapedPattern, "g");
+      const matches = conf.match(regex);
+      expect(
+        matches,
+        `Expected 3 regex location blocks for ${id}`,
+      ).toHaveLength(3);
     }
   });
 

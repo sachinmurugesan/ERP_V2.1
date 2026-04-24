@@ -1,0 +1,25 @@
+diff --git a/dist/native.js b/dist/native.js
+index 0000000..0000001 100644
+--- a/dist/native.js
++++ b/dist/native.js
+@@ -121,9 +121,17 @@ const requireWithFriendlyError = id => {
+ 	}
+ };
+ 
+-const { parse, parseAsync, xxhashBase64Url, xxhashBase36, xxhashBase16 } = requireWithFriendlyError(
+-	existsSync(path.join(__dirname, localName)) ? localName : `@rollup/rollup-${packageBase}`
+-);
++let parse, parseAsync, xxhashBase64Url, xxhashBase36, xxhashBase16;
++try {
++	const nativeMod = requireWithFriendlyError(
++		existsSync(path.join(__dirname, localName)) ? localName : `@rollup/rollup-${packageBase}`
++	);
++	({ parse, parseAsync, xxhashBase64Url, xxhashBase36, xxhashBase16 } = nativeMod);
++} catch (err) {
++	// WASM fallback when native binary is blocked (e.g. WDAC on Windows)
++	const wasmMod = require('@rollup/wasm-node/dist/native.js');
++	({ parse, parseAsync, xxhashBase64Url, xxhashBase36, xxhashBase16 } = wasmMod);
++}
+ 
+ function getPackageBase() {
+ 	const imported = bindingsByPlatformAndArch[platform]?.[arch];
