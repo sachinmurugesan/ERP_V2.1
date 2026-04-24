@@ -76,7 +76,7 @@ export interface LedgerPageProps<TRow> {
   /** Heading. */
   title: string;
   /** Optional subheading (e.g. selected entity's full name). */
-  subtitle?: string;
+  subtitle?: string | undefined;
   /** Entity type label for select placeholder + empty message. */
   entityLabel: string;
   /** Currently selected entity ID — empty string = none selected. */
@@ -91,23 +91,23 @@ export interface LedgerPageProps<TRow> {
   /** Transaction rows. */
   transactions: TRow[];
   /** Totals row values (keyed by LedgerColumn.totalKey). */
-  totals?: Record<string, React.ReactNode>;
+  totals?: Record<string, React.ReactNode> | undefined;
   /** Date range filter. */
   dateRange: LedgerDateRange;
   onDateRangeChange: (range: LedgerDateRange) => void;
   /** Download handlers. Buttons always render; disabled state kicks in when falsy. */
-  onDownloadPdf?: () => void;
-  onDownloadExcel?: () => void;
+  onDownloadPdf?: (() => void) | undefined;
+  onDownloadExcel?: (() => void) | undefined;
   /** Disable downloads regardless of handler presence (e.g. no entity / empty txns). */
-  downloadDisabled?: boolean;
+  downloadDisabled?: boolean | undefined;
   /** Optional tooltip explaining any date filter semantics surprise. */
-  dateFilterTooltip?: string;
+  dateFilterTooltip?: string | undefined;
   /** Loading — swap content with skeletons. */
-  loading?: boolean;
+  loading?: boolean | undefined;
   /** Error banner shown above the table. */
-  error?: string | null;
+  error?: string | null | undefined;
   /** Page-specific action area in the top-right (beside downloads). */
-  headerActions?: React.ReactNode;
+  headerActions?: React.ReactNode | undefined;
 }
 
 function summaryVariantClass(variant: LedgerSummaryCard["variant"]): string {
