@@ -39,6 +39,11 @@ ERP_V1/scripts/security-evidence/
 ERP_V1/.claude/everything-claude-code/
 ERP_V1/IMP-ERP_V1.1/
 
+# ─── Local scratch folders ───────────────────────────────────
+# Extracted design bundles, temp exports, anything users unpack
+# locally that isn't a committable deliverable.
+ERP_V1/_design-inbox/
+
 # ─── Test / coverage output ──────────────────────────────────
 coverage/
 test-results/
