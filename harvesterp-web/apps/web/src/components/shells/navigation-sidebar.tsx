@@ -54,6 +54,20 @@ const NAV_RESOURCE_MAP: Readonly<Record<string, Resource | undefined>> = {
   settings:         Resource.SYSTEM_SETTINGS,
 } as const;
 
+/**
+ * Override the default `/${id}` routing for nav items whose URL doesn't
+ * match their id. Finance items live under /finance/*; audit-logs under
+ * /audit-logs (hyphenated) — just list each deviation here.
+ *
+ * Items not in the map route to `/${id}` (the original default).
+ */
+const NAV_HREF_OVERRIDES: Readonly<Record<string, string>> = {
+  receivables:      "/finance/receivables",
+  "client-ledger":  "/finance/client-ledger",
+  "factory-ledger": "/finance/factory-ledger",
+  payments:         "/finance/payments",
+} as const;
+
 // ── Filtering ─────────────────────────────────────────────────────────────────
 
 /**
@@ -100,7 +114,8 @@ export function NavigationSidebar({ user, userRole, compact }: NavigationSidebar
       navGroups={navGroups}
       {...(compact !== undefined ? { compact } : {})}
       onNavigate={(id) => {
-        router.push(`/${id}`);
+        const href = NAV_HREF_OVERRIDES[id] ?? `/${id}`;
+        router.push(href);
       }}
     />
   );
