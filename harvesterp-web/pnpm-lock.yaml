@@ -4,6 +4,11 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  rollup@4.60.2:
+    hash: krovhckz4tadbyk24kpw35qniu
+    path: patches/rollup@4.60.2.patch
+
 importers:
 
   .:
@@ -6118,7 +6123,7 @@ snapshots:
     dependencies:
       magic-string: 0.30.21
       mlly: 1.8.2
-      rollup: 4.60.2
+      rollup: 4.60.2(patch_hash=krovhckz4tadbyk24kpw35qniu)
 
   flat-cache@4.0.1:
     dependencies:
@@ -6993,7 +6998,7 @@ snapshots:
 
   reusify@1.1.0: {}
 
-  rollup@4.60.2:
+  rollup@4.60.2(patch_hash=krovhckz4tadbyk24kpw35qniu):
     dependencies:
       '@types/estree': 1.0.8
     optionalDependencies:
@@ -7389,7 +7394,7 @@ snapshots:
       picocolors: 1.1.1
       postcss-load-config: 6.0.1(jiti@1.21.7)(postcss@8.5.10)(tsx@4.21.0)
       resolve-from: 5.0.0
-      rollup: 4.60.2
+      rollup: 4.60.2(patch_hash=krovhckz4tadbyk24kpw35qniu)
       source-map: 0.7.6
       sucrase: 3.35.1
       tinyexec: 0.3.2
@@ -7558,7 +7563,7 @@ snapshots:
     dependencies:
       esbuild: 0.21.5
       postcss: 8.5.10
-      rollup: 4.60.2
+      rollup: 4.60.2(patch_hash=krovhckz4tadbyk24kpw35qniu)
     optionalDependencies:
       '@types/node': 22.19.17
       fsevents: 2.3.3
