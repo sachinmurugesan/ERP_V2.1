@@ -251,6 +251,20 @@ The log file commits in the SAME PR as the page migration. It is a living docume
 
 If the audit profile has any `[UNCLEAR]` marker or contradicts backend reality, STOP and ask before proceeding.
 
+### Rule R-16: Live happy-path verification before merge
+
+Every migration must include at least one live-backend verification of the primary user role's happy path before the branch is merged. Unit tests with mocked responses are necessary but not sufficient — mocks cannot catch mismatches between frontend assumptions and actual backend behavior.
+
+Minimum verification:
+- Seed any required test user (create via admin JWT if dev DB lacks one).
+- Log in as that user.
+- Navigate to the migrated page.
+- Verify: data loads, interactive elements work, state transitions render correctly, browser console has zero errors.
+
+Add the verification result to the migration log: in the **Issues** section if any bugs found, or in a dedicated **Live Verification** section if clean.
+
+Discovered during `feat/migrate-factory-ledger`: unit tests masked a `per_page=500` vs backend `le=200` mismatch that live verification caught in <15 minutes.
+
 ---
 
 ## Section 4: Technology Stack
