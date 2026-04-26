@@ -27,7 +27,7 @@ Every page migration PR must update this file.
 
 ---
 
-## Currently migrated (N=8)
+## Currently migrated (N=9)
 
 | Path | Migrated | PR | Notes |
 |------|----------|----|-------|
@@ -39,6 +39,7 @@ Every page migration PR must update this file.
 | `/products/{id}` | 2026-04-24 | feat/migrate-products-form | DETAIL view — read-only presentation with Edit button (role-gated), right-sidebar image gallery + lightbox. New mode added during migration — previously Vue had no standalone detail page. |
 | `/products/{id}/edit` | 2026-04-24 | feat/migrate-products-form | EDIT form + right-sidebar image gallery with upload/delete (AlertDialog confirmation). Unsaved-changes guard on dirty form. |
 | `/finance/factory-ledger` | 2026-04-24 | feat/migrate-factory-ledger | Internal finance page gated by `FACTORY_LEDGER_VIEW` (FINANCE + SUPER_ADMIN bypass; ADMIN excluded per D-004 with dedicated `AdminForbiddenState` screen). 3-card summary (debit/credit/net), 10-column transactions table with sticky Date column on mobile horizontal scroll, xlsx/pdf downloads via new `useBlobDownload()` hook, date-range filter with asymmetry tooltip. Introduces the `<LedgerPage>` Layer 2 composed component (ported from ui-gallery + generalized with `columns` prop). Sibling finance tabs (receivables, client-ledger, payments) remain Vue. |
+| `/clients` | 2026-04-26 | feat/migrate-clients-list | Internal clients list (exact match only). Search input with 400ms debounce + per-page selector (25/50/100, default 50) + windowed pagination, 6-column table on desktop (Company Name with hex-coloured `<ClientAvatar>` · GSTIN · Location · Contact · IEC/PAN · Actions), per-row card layout below 768px. Cluster D fields (`factory_markup_percent`, `sourcing_commission_percent`) stripped server-side in the API proxy before reaching the browser. Add/Edit/Delete actions role-gated via new `CLIENT_CREATE`/`CLIENT_UPDATE`/`CLIENT_DELETE` permissions (CLIENT_DELETE is `[ADMIN]` only — stricter than backend by design). Introduces 3 Layer 2 lifts: `<Pagination>`, `<DeleteConfirmDialog>`, `<ClientAvatar>`. `/clients/new` and `/clients/{id}/edit` stay Vue (separate migration). |
 
 ---
 
