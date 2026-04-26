@@ -455,14 +455,21 @@ No drift from research doc. Proceeding with Step 4.
 - **Date resolved:** 2026-04-26 (engine UP within seconds after fix)
 - **Tests added:** none — pure infra issue, not a code regression.
 
-### Issue 5: Working tree showed deleted tracked files after WSL shutdown
+### Issue 5: Git fscache transient inconsistency
 
-- **Date raised:** 2026-04-26 (pre-Phase 3)
-- **Problem:** After `wsl --shutdown` followed by Docker restart, Windows showed a number of tracked files (`docker-compose.yml`, `CONVENTIONS.md`, `README.md`, etc.) as deleted in `git status`, breaking `docker compose` until restored.
-- **Root cause:** WSL2's filesystem caching layer can drop file visibility to Windows when the distro is force-shutdown — the files exist in git's index and on disk via WSL, but Win32 can't see them until the cache rehydrates.
-- **Fix applied:** `git restore` re-materialised all deleted files from the index. No data lost.
-- **Date resolved:** 2026-04-26
-- **Tests added:** none.
+During the Docker Desktop pre-flight debugging session, `git status` briefly reported several tracked files (`.gitignore`, `docker-compose.yml`, `CONVENTIONS.md`, `backend/Dockerfile`, nginx configs, root `README.md`) as deleted with status `D`.
+
+**Initial hypothesis:** `wsl --shutdown` affected mounted files.
+
+**Investigation (post-merge) revealed this was wrong:**
+- Project files are 100% on Windows NTFS, no WSL involvement (the only WSL distro installed is `docker-desktop`, which has no `/mnt/c` mount; no Ubuntu or any other distro exists; `df -T /c/Dev/Template_1/ERP_V1` confirms the project lives on the NTFS `C:` volume).
+- Real cause: Windows git `core.fscache` transient inconsistency triggered by Docker Desktop's process flurry killing file watchers.
+
+**Workaround applied:** `git restore .gitignore CONVENTIONS.md docker-compose.yml backend/Dockerfile nginx/nginx.conf nginx/nginx.dev.conf README.md`
+
+**Workaround was a no-op coincidence** — files were physically present, cache self-healed. The restore happened to coincide with cache refresh.
+
+**No action needed.** Symptom benign and transient. Amended after Investigation 2 (Filesystem) confirmed the actual cause.
 
 ---
 
