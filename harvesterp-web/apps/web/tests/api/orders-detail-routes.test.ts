@@ -1,0 +1,400 @@
+/**
+ * orders-detail-routes.test.ts — Tests for the new order-detail proxy routes
+ * added in the orders-foundation PR.
+ *
+ * Covers:
+ *   GET    /api/orders/[id]            — full order detail
+ *   GET    /api/orders/[id]/timeline   — stage history
+ *   GET    /api/orders/[id]/next-stages — valid forward transitions
+ *   PUT    /api/orders/[id]/transition  — role-gated stage move (research §5.5)
+ */
+
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { NextRequest } from "next/server";
+
+const mockGetToken = vi.fn<() => Promise<string | null>>();
+const mockGetJson = vi.fn();
+const mockPutJson = vi.fn();
+const mockDeleteJson = vi.fn();
+const mockGET = vi.fn();
+
+vi.mock("@/lib/session", () => ({
+  getSessionToken: () => mockGetToken(),
+}));
+
+vi.mock("@/lib/api-server", () => ({
+  getServerClient: async () => ({
+    getJson: mockGetJson,
+    putJson: mockPutJson,
+    deleteJson: mockDeleteJson,
+    GET: mockGET,
+  }),
+}));
+
+import { GET as getOrder } from "../../src/app/api/orders/[id]/route";
+import { GET as getTimeline } from "../../src/app/api/orders/[id]/timeline/route";
+import { GET as getNextStages } from "../../src/app/api/orders/[id]/next-stages/route";
+import { PUT as transitionOrder } from "../../src/app/api/orders/[id]/transition/route";
+
+function makeRequest(url: string, init?: RequestInit) {
+  return new NextRequest(new URL(url), init);
+}
+
+function ctx(id: string) {
+  return { params: Promise.resolve({ id }) };
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  mockGetToken.mockResolvedValue("tok");
+});
+
+// ── GET /api/orders/[id] ─────────────────────────────────────────────────────
+
+describe("GET /api/orders/[id]", () => {
+  it("returns 401 without session", async () => {
+    mockGetToken.mockResolvedValueOnce(null);
+    const res = await getOrder(makeRequest("http://x/api/orders/o1"), ctx("o1"));
+    expect(res.status).toBe(401);
+  });
+
+  it("returns 400 when id missing", async () => {
+    const res = await getOrder(makeRequest("http://x/api/orders/"), ctx(""));
+    expect(res.status).toBe(400);
+  });
+
+  it("forwards to backend and returns the order JSON", async () => {
+    mockGetJson.mockResolvedValueOnce({
+      id: "o1",
+      order_number: "ORD-100",
+      stage_number: 5,
+      stage_name: "Factory Ordered",
+      status: "FACTORY_ORDERED",
+      client_id: "c1",
+      factory_id: "f1",
+      total_value_cny: 100000,
+      created_at: "2026-04-26T00:00:00",
+    });
+    const res = await getOrder(
+      makeRequest("http://x/api/orders/o1"),
+      ctx("o1"),
+    );
+    expect(res.status).toBe(200);
+    expect(mockGetJson).toHaveBeenCalledWith("/api/orders/o1/");
+    const body = await res.json();
+    expect(body.id).toBe("o1");
+    expect(body.stage_number).toBe(5);
+  });
+
+  it("encodes the order id in the URL", async () => {
+    mockGetJson.mockResolvedValueOnce({
+      id: "weird id",
+      stage_number: 1,
+      stage_name: "Draft",
+      status: "DRAFT",
+      created_at: "2026-04-26T00:00:00",
+    });
+    await getOrder(
+      makeRequest("http://x/api/orders/weird%20id"),
+      ctx("weird id"),
+    );
+    expect(mockGetJson).toHaveBeenCalledWith("/api/orders/weird%20id/");
+  });
+
+  it("maps backend 403 to 403 with permission message", async () => {
+    const err: Error & { status?: number } = new Error("nope");
+    err.status = 403;
+    mockGetJson.mockRejectedValueOnce(err);
+    const res = await getOrder(makeRequest("http://x/api/orders/o1"), ctx("o1"));
+    expect(res.status).toBe(403);
+    expect((await res.json()).error).toMatch(/permission/i);
+  });
+
+  it("maps backend 404 to 404", async () => {
+    const err: Error & { status?: number } = new Error("missing");
+    err.status = 404;
+    mockGetJson.mockRejectedValueOnce(err);
+    const res = await getOrder(
+      makeRequest("http://x/api/orders/missing"),
+      ctx("missing"),
+    );
+    expect(res.status).toBe(404);
+  });
+
+  it("maps backend 5xx to 502", async () => {
+    const err: Error & { status?: number } = new Error("boom");
+    err.status = 500;
+    mockGetJson.mockRejectedValueOnce(err);
+    const res = await getOrder(makeRequest("http://x/api/orders/o1"), ctx("o1"));
+    expect(res.status).toBe(502);
+  });
+});
+
+// ── GET /api/orders/[id]/timeline ────────────────────────────────────────────
+
+describe("GET /api/orders/[id]/timeline", () => {
+  it("returns 401 without session", async () => {
+    mockGetToken.mockResolvedValueOnce(null);
+    const res = await getTimeline(
+      makeRequest("http://x/api/orders/o1/timeline"),
+      ctx("o1"),
+    );
+    expect(res.status).toBe(401);
+  });
+
+  it("forwards + returns events array (wrapped shape)", async () => {
+    mockGetJson.mockResolvedValueOnce({
+      events: [
+        {
+          stage_number: 1,
+          stage_name: "Draft",
+          status: "DRAFT",
+          reached_at: "2026-04-26T00:00:00",
+          reached_by_user_id: "u1",
+          reached_by_user_name: "Alice",
+          override_reason: null,
+          warnings: null,
+        },
+      ],
+    });
+    const res = await getTimeline(
+      makeRequest("http://x/api/orders/o1/timeline"),
+      ctx("o1"),
+    );
+    expect(res.status).toBe(200);
+    expect(mockGetJson).toHaveBeenCalledWith("/api/orders/o1/timeline/");
+    const body = await res.json();
+    expect(Array.isArray(body.events)).toBe(true);
+    expect(body.events).toHaveLength(1);
+    expect(body.events[0].stage_number).toBe(1);
+  });
+
+  it("normalizes a bare-array backend response into { events: [...] }", async () => {
+    mockGetJson.mockResolvedValueOnce([
+      {
+        stage_number: 2,
+        stage_name: "Pending PI",
+        status: "PENDING_PI",
+        reached_at: null,
+        reached_by_user_id: null,
+        reached_by_user_name: null,
+        override_reason: null,
+        warnings: null,
+      },
+    ]);
+    const res = await getTimeline(
+      makeRequest("http://x/api/orders/o1/timeline"),
+      ctx("o1"),
+    );
+    const body = await res.json();
+    expect(body.events).toHaveLength(1);
+    expect(body.events[0].stage_number).toBe(2);
+  });
+
+  it("maps backend 404 to 404", async () => {
+    const err: Error & { status?: number } = new Error("nope");
+    err.status = 404;
+    mockGetJson.mockRejectedValueOnce(err);
+    const res = await getTimeline(
+      makeRequest("http://x/api/orders/missing/timeline"),
+      ctx("missing"),
+    );
+    expect(res.status).toBe(404);
+  });
+});
+
+// ── GET /api/orders/[id]/next-stages ─────────────────────────────────────────
+
+describe("GET /api/orders/[id]/next-stages", () => {
+  it("returns 401 without session", async () => {
+    mockGetToken.mockResolvedValueOnce(null);
+    const res = await getNextStages(
+      makeRequest("http://x/api/orders/o1/next-stages"),
+      ctx("o1"),
+    );
+    expect(res.status).toBe(401);
+  });
+
+  it("forwards + returns options array", async () => {
+    mockGetJson.mockResolvedValueOnce({
+      options: [
+        {
+          stage_number: 3,
+          status: "PI_SENT",
+          label: "PI Sent",
+          requires_warning_override: false,
+          blocked_reason: null,
+        },
+      ],
+    });
+    const res = await getNextStages(
+      makeRequest("http://x/api/orders/o1/next-stages"),
+      ctx("o1"),
+    );
+    expect(res.status).toBe(200);
+    expect(mockGetJson).toHaveBeenCalledWith("/api/orders/o1/next-stages/");
+    const body = await res.json();
+    expect(body.options).toHaveLength(1);
+    expect(body.options[0].status).toBe("PI_SENT");
+  });
+
+  it("normalizes a bare-array response", async () => {
+    mockGetJson.mockResolvedValueOnce([
+      {
+        stage_number: 3,
+        status: "PI_SENT",
+        label: "PI Sent",
+      },
+    ]);
+    const res = await getNextStages(
+      makeRequest("http://x/api/orders/o1/next-stages"),
+      ctx("o1"),
+    );
+    const body = await res.json();
+    expect(body.options).toHaveLength(1);
+  });
+});
+
+// ── PUT /api/orders/[id]/transition (role-gated) ─────────────────────────────
+
+describe("PUT /api/orders/[id]/transition", () => {
+  function makeBodyRequest(role: string, body: unknown) {
+    mockGET.mockResolvedValueOnce({ data: { role } });
+    return makeRequest("http://x/api/orders/o1/transition", {
+      method: "PUT",
+      body: JSON.stringify(body),
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  it("returns 401 without session", async () => {
+    mockGetToken.mockResolvedValueOnce(null);
+    const res = await transitionOrder(
+      makeRequest("http://x/api/orders/o1/transition", {
+        method: "PUT",
+        body: JSON.stringify({ target_status: "PI_SENT" }),
+      }),
+      ctx("o1"),
+    );
+    expect(res.status).toBe(401);
+  });
+
+  it("ADMIN role: forwards to backend and returns ok", async () => {
+    mockPutJson.mockResolvedValueOnce({ ok: true });
+    const res = await transitionOrder(
+      makeBodyRequest("ADMIN", { target_status: "PI_SENT" }),
+      ctx("o1"),
+    );
+    expect(res.status).toBe(200);
+    expect(mockPutJson).toHaveBeenCalledWith(
+      "/api/orders/o1/transition/",
+      expect.objectContaining({ target_status: "PI_SENT" }),
+    );
+  });
+
+  it("OPERATIONS role: forwards to backend (allowed)", async () => {
+    mockPutJson.mockResolvedValueOnce({ ok: true });
+    const res = await transitionOrder(
+      makeBodyRequest("OPERATIONS", { target_status: "PI_SENT" }),
+      ctx("o1"),
+    );
+    expect(res.status).toBe(200);
+    expect(mockPutJson).toHaveBeenCalled();
+  });
+
+  it("SUPER_ADMIN role: forwards to backend (allowed)", async () => {
+    mockPutJson.mockResolvedValueOnce({ ok: true });
+    const res = await transitionOrder(
+      makeBodyRequest("SUPER_ADMIN", { target_status: "PI_SENT" }),
+      ctx("o1"),
+    );
+    expect(res.status).toBe(200);
+  });
+
+  it("FINANCE role: returns 403 (denied at proxy gate)", async () => {
+    const res = await transitionOrder(
+      makeBodyRequest("FINANCE", { target_status: "PI_SENT" }),
+      ctx("o1"),
+    );
+    expect(res.status).toBe(403);
+    expect((await res.json()).error).toMatch(/permission|don't have/i);
+    // Backend was NOT called — gate caught it.
+    expect(mockPutJson).not.toHaveBeenCalled();
+  });
+
+  it("CLIENT role: returns 403", async () => {
+    const res = await transitionOrder(
+      makeBodyRequest("CLIENT", { target_status: "PI_SENT" }),
+      ctx("o1"),
+    );
+    expect(res.status).toBe(403);
+    expect(mockPutJson).not.toHaveBeenCalled();
+  });
+
+  it("FACTORY role: returns 403", async () => {
+    const res = await transitionOrder(
+      makeBodyRequest("FACTORY", { target_status: "PI_SENT" }),
+      ctx("o1"),
+    );
+    expect(res.status).toBe(403);
+    expect(mockPutJson).not.toHaveBeenCalled();
+  });
+
+  it("missing role (auth/me failed): returns 403", async () => {
+    mockGET.mockResolvedValueOnce({ data: null });
+    const res = await transitionOrder(
+      makeRequest("http://x/api/orders/o1/transition", {
+        method: "PUT",
+        body: JSON.stringify({ target_status: "PI_SENT" }),
+        headers: { "Content-Type": "application/json" },
+      }),
+      ctx("o1"),
+    );
+    expect(res.status).toBe(403);
+    expect(mockPutJson).not.toHaveBeenCalled();
+  });
+
+  it("missing target_status AND target_stage_number: returns 400", async () => {
+    const res = await transitionOrder(
+      makeBodyRequest("ADMIN", { override_reason: "nothing else" }),
+      ctx("o1"),
+    );
+    expect(res.status).toBe(400);
+    expect(mockPutJson).not.toHaveBeenCalled();
+  });
+
+  it("invalid JSON body: returns 400", async () => {
+    mockGET.mockResolvedValueOnce({ data: { role: "ADMIN" } });
+    // NextRequest with non-JSON body
+    const req = new NextRequest(new URL("http://x/api/orders/o1/transition"), {
+      method: "PUT",
+      body: "not-json{",
+      headers: { "Content-Type": "application/json" },
+    });
+    const res = await transitionOrder(req, ctx("o1"));
+    expect(res.status).toBe(400);
+  });
+
+  it("backend 409 (stage-engine validation): forwards 409 with backend message", async () => {
+    const err: Error & { status?: number } = new Error("Cannot advance: PI not generated yet");
+    err.status = 409;
+    mockPutJson.mockRejectedValueOnce(err);
+    const res = await transitionOrder(
+      makeBodyRequest("ADMIN", { target_status: "PI_SENT" }),
+      ctx("o1"),
+    );
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toMatch(/PI not generated/);
+  });
+
+  it("backend 5xx: returns 502", async () => {
+    const err: Error & { status?: number } = new Error("boom");
+    err.status = 500;
+    mockPutJson.mockRejectedValueOnce(err);
+    const res = await transitionOrder(
+      makeBodyRequest("ADMIN", { target_status: "PI_SENT" }),
+      ctx("o1"),
+    );
+    expect(res.status).toBe(502);
+  });
+});

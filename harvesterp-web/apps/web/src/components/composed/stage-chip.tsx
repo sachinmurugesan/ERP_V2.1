@@ -3,14 +3,28 @@ import * as React from "react";
 /**
  * StageChip — shared chip for order workflow stages.
  *
- * Stages 1–14 map to semantic chip tones (neutral / warn / info / accent / ok).
- * Stages ≥15 (DELIVERED / AFTER_SALES / COMPLETED) fall back to the neutral
- * chip so they're distinct from Stage 1 slate but don't mis-signal urgency —
- * see the dashboard migration's Issue 1 for the reasoning.
+ * Covers all 17 stages of the canonical workflow (0..17 inclusive of
+ * CLIENT_DRAFT). Source of truth: `ERP_V1/backend/enums.py:258-282
+ * STAGE_MAP`. The `frontend/src/utils/constants.js` 18-stage list with
+ * a phantom `FACTORY_PAYMENT` is a Vue-side bug — NOT mirrored here.
  *
- * Used by both the dashboard (Active Shipments) and the orders list. Before
- * this lift, the component was copy-pasted into both pages; the refactor
- * extracts it so future pages can import from one place.
+ * Tone scheme (mirrors the existing pattern + extends it for 0/15-17):
+ *   0:    chip           (CLIENT_DRAFT — pre-pipeline inquiry; neutral)
+ *   1:    chip           (DRAFT)
+ *   2-4:  chip chip-warn (PENDING_PI / PI_SENT / ADVANCE_*)
+ *   5-10: chip chip-info (FACTORY_ORDERED through FINAL_PI)
+ *   11-12: chip chip-accent (PRODUCTION_100 / BOOKED — brand emerald; "we're moving")
+ *   13-14: chip chip-ok  (LOADED/SAILED/ARRIVED through CUSTOMS — green; "in transit / cleared")
+ *   15:   chip chip-ok   (DELIVERED — done; green)
+ *   16:   chip chip-ok   (AFTER_SALES — post-completion service; green stays consistent with 15)
+ *   17:   chip chip-accent (COMPLETED — brand emerald; terminal good)
+ *
+ * Used by the dashboard (Active Shipments), orders list, and any future
+ * order-detail-shaped page that renders a stage indicator.
+ *
+ * Stage extension to 0 + 15-17 was done in the orders-foundation PR
+ * (research §5.5 finding — backend has 17 stages; previous coverage was
+ * only 1-14, which made stages 0/15/16/17 silently fall through to neutral).
  */
 
 type ChipTone =
@@ -22,6 +36,7 @@ type ChipTone =
   | "chip chip-err";
 
 const STAGE_TONE: Record<number, ChipTone> = {
+  0: "chip",
   1: "chip",
   2: "chip chip-warn",
   3: "chip chip-warn",
@@ -36,6 +51,9 @@ const STAGE_TONE: Record<number, ChipTone> = {
   12: "chip chip-accent",
   13: "chip chip-ok",
   14: "chip chip-ok",
+  15: "chip chip-ok",
+  16: "chip chip-ok",
+  17: "chip chip-accent",
 };
 
 export function stageToneFor(stageNumber: number): ChipTone {
