@@ -265,6 +265,28 @@ Add the verification result to the migration log: in the **Issues** section if a
 
 Discovered during `feat/migrate-factory-ledger`: unit tests masked a `per_page=500` vs backend `le=200` mismatch that live verification caught in <15 minutes.
 
+### Rule R-19: Gstack workflow gates
+
+Four gstack skills are mandatory gates inside the existing Phase 1/2/3 workflow. They do **not** replace any existing step — they are checkpoints that must run at specific points before the workflow can advance.
+
+| Skill | Trigger point | Purpose |
+|---|---|---|
+| `/design-review` | After Phase 3 implementation completes, **before** the merge-approval prompt | Open every newly-migrated route in a real browser, compare against the closest `Design/screens/*.jsx` reference, fix visual drift in source code. Without this gate, a migration that passes lint + tests + build can still ship visually broken (cf. UI quality audit 2026-04-26: every page rendered Times New Roman because R-16 only checked DOM, not visuals). |
+| `/qa` | During R-16 live happy-path verification | Real browser, authenticated flows, finds bugs DOM-only verification misses. Replaces the manual `preview_eval` checks that R-16 originally specified — `/qa` is the canonical R-16 implementation going forward. |
+| `/cso` | Before any `git push` to GitHub | Security audit covering secrets archaeology, dependency supply chain, CI/CD pipeline, LLM/AI surface, and OWASP basics. Required before any push that leaves the local machine. |
+| `/investigate` | When a debugging task exceeds 15 minutes without clear progress | Systematic root-cause investigation (investigate → analyze → hypothesize → implement). Iron Law: no fixes without root cause. Prevents the cargo-culting that happens when stuck for too long. |
+
+**Workflow integration cheat-sheet:**
+- Phase 1 (Discovery) → no gate change.
+- Phase 2 (UX reasoning) → no gate change.
+- Phase 3 step 14 (run full test suite) → unchanged.
+- **NEW step 14.5:** Run `/design-review` against every migrated route. Iterate fixes in source. Do not advance until clean.
+- Phase 3 step 15 (open PR / await merge approval) → unchanged in form, but R-16's "live verification" is now done via `/qa` (not the old DOM-only `preview_eval` recipe).
+- Before any `git push origin <branch>` → run `/cso`. Block push on critical findings.
+- Inside any phase: if debugging stalls past 15 min, switch to `/investigate` rather than continuing ad-hoc.
+
+Discovered during the UI quality audit on 2026-04-26: the `feat/migrate-clients-list` merge passed lint + 489 tests + build + R-16 (DOM-only) yet shipped a page rendering Times New Roman because Next.js dev-server's CSS link 404'd. `/design-review` would have caught this at step 14.5; `/qa` would have caught it at the new R-16.
+
 ---
 
 ## Section 4: Technology Stack
