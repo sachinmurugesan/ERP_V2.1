@@ -32,15 +32,25 @@ import { getServerClient } from "@/lib/api-server";
 
 const TRANSITION_ROLES: ReadonlyArray<UserRole> = ["ADMIN", "OPERATIONS", "SUPER_ADMIN"] as UserRole[];
 
+/**
+ * Request body shape for `PUT /api/orders/{id}/transition`.
+ *
+ * IMPORTANT — backend contract verified live 2026-04-26:
+ *   `target_status` MUST go on the URL as a query parameter, NOT in the body.
+ *   The body must contain `acknowledge_warnings` (and optionally
+ *   `transition_reason` when overriding warnings).
+ *
+ * The original foundation-PR proxy passed `target_status` in the body and
+ * would have failed in production with a 422 "field required (query)".
+ * Fixed in feat/order-detail-shell.
+ */
 interface TransitionBody {
-  /** The target backend OrderStatus enum value (e.g. "PENDING_PI"). */
-  target_status?: string;
-  /** Alternative — target stage number (some legacy callers pass this). */
-  target_stage_number?: number;
-  /** Override reason when advancing despite a warning. */
-  override_reason?: string;
-  /** Pass-through for any extra fields the backend may add. */
-  [key: string]: unknown;
+  /** Backend OrderStatus enum value (e.g. "PENDING_PI"). Forwarded as ?target_status=... */
+  target_status: string;
+  /** True when re-trying a transition that returned warnings on the first attempt. */
+  acknowledge_warnings?: boolean;
+  /** Required when acknowledge_warnings is true — user's reason for proceeding despite warnings. */
+  transition_reason?: string;
 }
 
 async function resolveCallerRole(): Promise<UserRole | undefined> {
@@ -90,19 +100,27 @@ export async function PUT(
     );
   }
 
-  if (!body.target_status && body.target_stage_number === undefined) {
+  if (!body.target_status) {
     return NextResponse.json(
-      { error: "Body must include target_status or target_stage_number" },
+      { error: "Body must include target_status" },
       { status: 400 },
     );
   }
 
   try {
     const client = await getServerClient();
-    const result = await client.putJson<unknown>(
-      `/api/orders/${encodeURIComponent(id)}/transition/`,
-      body,
-    );
+    // ⚠️ target_status MUST be a query param — backend reads from query, not body.
+    // Body carries only { acknowledge_warnings, transition_reason }.
+    const url =
+      `/api/orders/${encodeURIComponent(id)}/transition/` +
+      `?target_status=${encodeURIComponent(body.target_status)}`;
+    const upstreamBody: Record<string, unknown> = {
+      acknowledge_warnings: body.acknowledge_warnings ?? false,
+    };
+    if (body.transition_reason !== undefined) {
+      upstreamBody.transition_reason = body.transition_reason;
+    }
+    const result = await client.putJson<unknown>(url, upstreamBody);
     return NextResponse.json({ ok: true, result });
   } catch (err) {
     const status =
