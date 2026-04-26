@@ -265,6 +265,24 @@ Add the verification result to the migration log: in the **Issues** section if a
 
 Discovered during `feat/migrate-factory-ledger`: unit tests masked a `per_page=500` vs backend `le=200` mismatch that live verification caught in <15 minutes.
 
+### Rule R-17: Visual fidelity check before merge
+
+After Phase 3 implementation and before merge approval, run `/design-review` on every migrated page. The check is a hard gate: a migration is not approved for merge until `/design-review` reports all five dimensions at **7 or above**.
+
+The tool must:
+- Open the page in a real browser (not jsdom, not a DOM-only `preview_eval`).
+- Compare rendered output against the closest reference screen in `ERP_V1/Design/screens/*.jsx`.
+- Rate each of these five dimensions on a 0-10 scale:
+  1. **Typography** — font family, scale, weight, line-height, hierarchy
+  2. **Layout** — page structure, content widths, header/footer composition
+  3. **Spacing** — padding, gap, margin tokens, whitespace intentionality
+  4. **Color** — token use, brand alignment, contrast, semantic tones
+  5. **Component usage** — design-system classes (`.btn`, `.card`, `.input`, `.tbl`, `.chip`, `.kpi-value`) vs ad-hoc Tailwind
+- Fix any dimension rated below 7 in source code (not in browser DevTools), then re-run.
+- Produce **before/after screenshots** in the migration log under a `### Visual fidelity (R-17)` section, with the per-dimension scores tabled and any source changes referenced.
+
+Discovered during the UI quality audit on 2026-04-26: `feat/migrate-clients-list` shipped with a serif h1 (Times New Roman, 32 px), a broken empty state (no CTA button visible), a floating counter with no card framing, and a misaligned search icon — none of which the unit-test suite could catch because every test queried the DOM directly with no rendering pipeline. R-17 closes that gap.
+
 ### Rule R-19: Gstack workflow gates
 
 Four gstack skills are mandatory gates inside the existing Phase 1/2/3 workflow. They do **not** replace any existing step — they are checkpoints that must run at specific points before the workflow can advance.
