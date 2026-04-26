@@ -75,6 +75,11 @@ export const Resource = {
   CLIENT_UPDATE:        "CLIENT_UPDATE",
   CLIENT_DELETE:        "CLIENT_DELETE",
 
+  // Transporters (Service Providers)
+  TRANSPORT_CREATE:     "TRANSPORT_CREATE",
+  TRANSPORT_UPDATE:     "TRANSPORT_UPDATE",
+  TRANSPORT_DELETE:     "TRANSPORT_DELETE",
+
   // Factory ledger (Cluster A — D-009)
   FACTORY_LEDGER_VIEW:  "FACTORY_LEDGER_VIEW",
   FACTORY_PAYMENTS:     "FACTORY_PAYMENTS",
@@ -149,6 +154,17 @@ export const PERMISSION_MATRIX: Readonly<Record<Resource, readonly UserRole[]>> 
   [Resource.CLIENT_CREATE]: [ADMIN, OPERATIONS],
   [Resource.CLIENT_UPDATE]: [ADMIN, OPERATIONS],
   [Resource.CLIENT_DELETE]: [ADMIN],
+
+  // --- Transporters (Service Providers) ---
+  // Backend (G-014, Patch 13) gates POST /api/shipping/transport/, PUT /api/shipping/transport/{id}/,
+  // and DELETE /api/shipping/transport/{id}/ to ADMIN | OPERATIONS | SUPER_ADMIN
+  // (CREATE/UPDATE) and ADMIN | SUPER_ADMIN (DELETE).
+  // CREATE + UPDATE mirror that scope. DELETE matches backend exactly — only ADMIN
+  // (SUPER_ADMIN bypass is implicit via canAccess()). Same pattern as CLIENT_DELETE.
+  // VERIFIED: backend/routers/shipping.py + G-014 patch + live POST/DELETE 2026-04-26.
+  [Resource.TRANSPORT_CREATE]: [ADMIN, OPERATIONS],
+  [Resource.TRANSPORT_UPDATE]: [ADMIN, OPERATIONS],
+  [Resource.TRANSPORT_DELETE]: [ADMIN],
 
   // --- Factory ledger (D-009 / Cluster A) ---
   // All 9 endpoints carry Depends(require_factory_financial) = [SUPER_ADMIN, FINANCE].
