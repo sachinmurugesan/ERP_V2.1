@@ -308,14 +308,14 @@ The tool must:
 
 Discovered during the UI quality audit on 2026-04-26: `feat/migrate-clients-list` shipped with a serif h1 (Times New Roman, 32 px), a broken empty state (no CTA button visible), a floating counter with no card framing, and a misaligned search icon — none of which the unit-test suite could catch because every test queried the DOM directly with no rendering pipeline. R-17 closes that gap.
 
-### Rule R-19: Gstack workflow gates
+### Rule R-18: Gstack workflow gates
 
 Four gstack skills are mandatory gates inside the existing Phase 1/2/3 workflow. They do **not** replace any existing step — they are checkpoints that must run at specific points before the workflow can advance.
 
 | Skill | Trigger point | Purpose |
 |---|---|---|
 | `/design-review` | After Phase 3 implementation completes, **before** the merge-approval prompt | Open every newly-migrated route in a real browser, compare against the closest `Design/screens/*.jsx` reference, fix visual drift in source code. Without this gate, a migration that passes lint + tests + build can still ship visually broken (cf. UI quality audit 2026-04-26: every page rendered Times New Roman because R-16 only checked DOM, not visuals). |
-| `/qa` | During R-16 live happy-path verification | Real browser, authenticated flows, finds bugs DOM-only verification misses. Replaces the manual `preview_eval` checks that R-16 originally specified — `/qa` is the canonical R-16 implementation going forward. |
+| `/qa` | During R-16 live happy-path verification | Implements R-16 live verification. Runs the three required console checks (`fontFamily` contains Manrope, `styleSheets.length > 0`, `--f-sans` non-empty) plus authenticated flow testing in a real browser. |
 | `/cso` | Before any `git push` to GitHub | Security audit covering secrets archaeology, dependency supply chain, CI/CD pipeline, LLM/AI surface, and OWASP basics. Required before any push that leaves the local machine. |
 | `/investigate` | When a debugging task exceeds 15 minutes without clear progress | Systematic root-cause investigation (investigate → analyze → hypothesize → implement). Iron Law: no fixes without root cause. Prevents the cargo-culting that happens when stuck for too long. |
 
