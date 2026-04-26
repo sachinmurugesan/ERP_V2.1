@@ -112,9 +112,9 @@ From this point, all migrations follow the PR workflow:
 
 Do NOT merge locally with `git merge --no-ff` anymore.
 Do NOT push directly to `main`.
-GitHub branch protection enforces this (when available — see note below).
+GitHub branch protection enforces this — direct pushes will be rejected.
 
-**Branch-protection note:** GitHub Free does not allow branch protection on private repos. For this repo, the PR workflow is currently enforced by **discipline only**. If `main` is ever pushed to directly, that's a process violation, not a tool block. If branch protection is needed as a hard gate, either (a) make the repo public, or (b) upgrade to GitHub Pro and enable protection at `github.com/sachinmurugesan/ERP_V2.1/settings/branches`.
+**Branch-protection state (active as of 2026-04-26):** repo is public; `main` requires 1 PR approval before merge; force-pushes disabled; deletions disabled; admins not exempt-by-policy (`enforce_admins: false` — admins can override if needed for emergency hotfixes). Settings live at `github.com/sachinmurugesan/ERP_V2.1/settings/branches`.
 
 ---
 
