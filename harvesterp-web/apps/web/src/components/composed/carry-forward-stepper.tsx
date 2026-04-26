@@ -3,27 +3,36 @@
 /**
  * <CarryForwardStepper> — P-005 canonical implementation.
  *
- * Lifted verbatim from `apps/ui-gallery/src/components/composed/carry-forward-stepper.tsx`
- * for the orders-foundation PR. Foundation for the future order-detail
- * `<StageStepper>` (research §5.6) and reused by the Payments tab,
- * Shipping tab, and Order Draft wizard.
+ * Lifted from `apps/ui-gallery/...` in the orders-foundation PR. Extended in
+ * feat/order-detail-shell with a 5th status (`unlocked`) so it can power the
+ * order-detail StageStepper — clickable amber circles for forward-jump
+ * targets are a hard requirement for that page.
  *
  * Statuses:
- *   "complete"  → green check mark
- *   "current"   → blue pulsing indicator (active step)
- *   "upcoming"  → gray circle (not yet reached)
- *   "blocked"   → red X (error/blocked state)
+ *   "complete"  → green check (finished step)
+ *   "current"   → blue pulsing dot (active step)
+ *   "upcoming"  → gray ring (not yet reached)
+ *   "blocked"   → red X (error / cannot proceed)
+ *   "unlocked"  → amber circle with open-padlock icon — high-water-mark for
+ *                 a forward-jump target. Renders as clickable when
+ *                 `onStepClick` is supplied; otherwise visually distinct but
+ *                 inert.
  *
  * Works in both horizontal and vertical orientations.
  */
 
 import * as React from "react";
-import { Check, X } from "lucide-react";
+import { Check, LockOpen, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type StepStatus = "complete" | "current" | "upcoming" | "blocked";
+export type StepStatus =
+  | "complete"
+  | "current"
+  | "upcoming"
+  | "blocked"
+  | "unlocked";
 
 export interface StepperStep {
   id: string;
@@ -38,6 +47,17 @@ export interface CarryForwardStepperProps {
   orientation?: "horizontal" | "vertical";
   compact?: boolean;
   className?: string;
+  /**
+   * Optional callback fired when a step's indicator is clicked. Used by the
+   * order-detail StageStepper to route stepper-circle clicks to
+   * `confirmJumpToStage` (forward jump on `unlocked`, backward jump on
+   * `complete` if it's in the reachable-previous set).
+   *
+   * The component itself does NOT decide which steps are clickable — it
+   * passes every click through. The parent decides whether to act on a given
+   * step's status.
+   */
+  onStepClick?: (stepIndex: number, step: StepperStep) => void;
 }
 
 // ── Step indicator ───────────────────────────────────────────────────────────
@@ -80,6 +100,16 @@ function StepIndicator({ status }: { status: StepStatus }): React.ReactElement {
           <X className="h-4 w-4 text-white" strokeWidth={3} />
         </span>
       );
+    case "unlocked":
+      return (
+        <span
+          className={cn(base, "h-8 w-8 border-amber-500 bg-amber-100")}
+          data-testid="step-unlocked"
+          aria-label="Unlocked — jump forward to this stage"
+        >
+          <LockOpen className="h-4 w-4 text-amber-700" strokeWidth={2.5} />
+        </span>
+      );
     case "upcoming":
     default:
       return (
@@ -104,9 +134,49 @@ function labelClass(status: StepStatus): string {
       return "text-blue-700 font-semibold";
     case "blocked":
       return "text-red-600 font-medium";
+    case "unlocked":
+      return "text-amber-700 font-medium";
     default:
       return "text-slate-500";
   }
+}
+
+/**
+ * Wrapper that adds keyboard / mouse interactivity around the indicator
+ * when an `onStepClick` is provided. We use a real <button> for a11y
+ * (focus ring, Enter/Space activation, screen-reader role).
+ */
+interface ClickableIndicatorProps {
+  step: StepperStep;
+  index: number;
+  onStepClick: ((stepIndex: number, step: StepperStep) => void) | undefined;
+}
+
+function ClickableIndicator({
+  step,
+  index,
+  onStepClick,
+}: ClickableIndicatorProps): React.ReactElement {
+  if (!onStepClick) {
+    return <StepIndicator status={step.status} />;
+  }
+  return (
+    <button
+      type="button"
+      onClick={() => onStepClick(index, step)}
+      title={
+        step.status === "unlocked"
+          ? "Jump forward to this stage"
+          : step.status === "complete"
+          ? "Jump back to this stage"
+          : step.label
+      }
+      aria-label={`${step.label} — ${step.status}`}
+      className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
+    >
+      <StepIndicator status={step.status} />
+    </button>
+  );
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -116,6 +186,7 @@ export function CarryForwardStepper({
   orientation = "horizontal",
   compact = false,
   className,
+  onStepClick,
 }: CarryForwardStepperProps): React.ReactElement {
   if (orientation === "vertical") {
     return (
@@ -126,7 +197,11 @@ export function CarryForwardStepper({
         {steps.map((step, idx) => (
           <li key={step.id} className="flex items-start gap-3">
             <div className="flex flex-col items-center">
-              <StepIndicator status={step.status} />
+              <ClickableIndicator
+                step={step}
+                index={idx}
+                onStepClick={onStepClick}
+              />
               {idx < steps.length - 1 ? (
                 <div
                   className={cn(
@@ -174,7 +249,11 @@ export function CarryForwardStepper({
           )}
         >
           <div className="flex w-full items-center">
-            <StepIndicator status={step.status} />
+            <ClickableIndicator
+              step={step}
+              index={idx}
+              onStepClick={onStepClick}
+            />
             {idx < steps.length - 1 ? (
               <div
                 className={cn(
