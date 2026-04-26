@@ -97,6 +97,25 @@ Moves summary above the fold so users see balance before scrolling.
 Tested with empty, loading, and error states.
 ```
 
+### Remote workflow (post-GitHub setup)
+
+From this point, all migrations follow the PR workflow:
+
+1. Create feature branch: `git checkout -b feat/migrate-X`
+2. Build and commit on the branch (same as before)
+3. Push branch: `git push origin feat/migrate-X`
+4. Open PR on GitHub (`github.com/sachinmurugesan/ERP_V2.1`)
+5. Review diff on GitHub
+6. Merge PR on GitHub (squash or merge commit — prefer **merge commit** to preserve history)
+7. Pull locally: `git checkout main && git pull`
+8. Delete local branch: `git branch -d feat/migrate-X`
+
+Do NOT merge locally with `git merge --no-ff` anymore.
+Do NOT push directly to `main`.
+GitHub branch protection enforces this (when available — see note below).
+
+**Branch-protection note:** GitHub Free does not allow branch protection on private repos. For this repo, the PR workflow is currently enforced by **discipline only**. If `main` is ever pushed to directly, that's a process violation, not a tool block. If branch protection is needed as a hard gate, either (a) make the repo public, or (b) upgrade to GitHub Pro and enable protection at `github.com/sachinmurugesan/ERP_V2.1/settings/branches`.
+
 ---
 
 ## Section 3: Page Migration Workflow
