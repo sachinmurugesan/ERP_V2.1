@@ -3,38 +3,53 @@ import { getSessionToken } from "@/lib/session";
 import { getServerClient } from "@/lib/api-server";
 
 /**
- * Local shape for one timeline event.
+ * Backend `GET /api/orders/{id}/timeline/` (orders.py:2828) returns a wrapped
+ * envelope — NOT a bare array, NOT `{events: [...]}`. Live shape verified
+ * 2026-04-26 (see migration log §7a):
  *
- * Backend `backend/routers/orders.py:2828 GET /api/orders/{id}/timeline/`
- * returns an array of stage-history events. No `response_model` upstream;
- * fields below are derived from `_serialize_timeline` and verified live
- * during the orders module audit (research §6.1).
+ *   {
+ *     current_status: "DRAFT",
+ *     current_stage: 1,
+ *     current_name: "Draft",
+ *     timeline: [{ stage, name, status: 'completed' | 'current' | 'pending' | 'unlocked' | 'locked' }, ...],
+ *     overrides?: [{ stage, reason, ... }]
+ *   }
+ *
+ * The original foundation-PR proxy expected `{events: [...]}` and silently
+ * returned `{events: []}` because that key never existed. Fixed in
+ * feat/order-detail-shell to pass the full envelope through.
  */
-interface OrderTimelineEvent {
-  stage_number: number;
-  stage_name: string;
-  status: string;
-  reached_at: string | null;
-  reached_by_user_id: string | null;
-  reached_by_user_name: string | null;
-  override_reason: string | null;
-  warnings: string[] | null;
+
+interface TimelineEntry {
+  stage: number;
+  name: string;
+  status: "completed" | "current" | "pending" | "unlocked" | "locked";
   // Pass-through for any extra fields the backend may add.
   [key: string]: unknown;
 }
 
+interface TimelineOverride {
+  stage: number;
+  reason: string;
+  // Pass-through.
+  [key: string]: unknown;
+}
+
 interface TimelineResponse {
-  /** Some endpoints return a bare array; others wrap. The backend wraps. */
-  events: OrderTimelineEvent[];
+  current_status: string;
+  current_stage: number;
+  current_name: string;
+  timeline: TimelineEntry[];
+  overrides?: TimelineOverride[];
 }
 
 /**
  * GET /api/orders/{id}/timeline
  *
  * Proxies FastAPI GET /api/orders/{id}/timeline/. Returns the full stage
- * history for an order — used by the future order-detail StageStepper.
- *
- * Auth required; backend enforces order-scope.
+ * history envelope unchanged — consumers (the order-detail stepper) read
+ * `timeline[]` for stage states and `overrides[]` for the override-history
+ * card.
  */
 export async function GET(
   _req: NextRequest,
@@ -50,12 +65,16 @@ export async function GET(
   }
   try {
     const client = await getServerClient();
-    const result = await client.getJson<TimelineResponse | OrderTimelineEvent[]>(
+    const result = await client.getJson<TimelineResponse>(
       `/api/orders/${encodeURIComponent(id)}/timeline/`,
     );
-    // Normalize: always return { events: [...] } for stable client typing.
-    const events = Array.isArray(result) ? result : (result?.events ?? []);
-    return NextResponse.json({ events });
+    return NextResponse.json({
+      current_status: result.current_status,
+      current_stage: result.current_stage,
+      current_name: result.current_name,
+      timeline: result.timeline ?? [],
+      overrides: result.overrides ?? [],
+    });
   } catch (err) {
     const status =
       err instanceof Error && "status" in err

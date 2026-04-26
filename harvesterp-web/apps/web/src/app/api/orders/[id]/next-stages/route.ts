@@ -3,37 +3,53 @@ import { getSessionToken } from "@/lib/session";
 import { getServerClient } from "@/lib/api-server";
 
 /**
- * One option in the "where can I go from here?" list returned by the
- * backend's stage-engine.
+ * Backend `GET /api/orders/{id}/next-stages/` (orders.py:2437) returns FOUR
+ * lists in one shot — NOT `{options: [...]}` and NOT a bare array. Live
+ * shape verified 2026-04-26 (see migration log §7a):
  *
- * Backend `backend/routers/orders.py:2437 GET /api/orders/{id}/next-stages/`
- * returns an array; fields derived from `stage_engine.next_stages_for()`
- * (research §5).
+ *   {
+ *     current_status: "DRAFT",
+ *     current_stage: [1, "Draft"],
+ *     next_stages: [{ status, stage, name }],
+ *     prev_stage: null | { status, stage, name },
+ *     reachable_previous: [{ status, stage, name }, ...],
+ *     reachable_forward: [{ status, stage, name }, ...],
+ *     highest_unlocked_stage: number | null,
+ *   }
+ *
+ * The four lists drive distinct UI affordances on the order-detail shell:
+ *   - next_stages[]        → forward "Next: ..." buttons
+ *   - prev_stage           → "Go back" button
+ *   - reachable_previous[] → clickable completed stepper circles
+ *   - reachable_forward[]  → clickable amber unlocked stepper circles +
+ *                            "Return to S{n}" button
+ *
+ * The original foundation-PR proxy expected `{options: [...]}` and silently
+ * returned `{options: []}` because that key never existed. Fixed in
+ * feat/order-detail-shell to pass the full envelope through.
  */
-interface NextStageOption {
-  stage_number: number;
+
+interface StageOption {
   status: string;
-  label: string;
-  /** True when transitioning to this stage requires an override warning ack. */
-  requires_warning_override?: boolean;
-  /** Human-readable reason if the transition is not currently valid. */
-  blocked_reason?: string | null;
-  // Pass-through.
-  [key: string]: unknown;
+  stage: number;
+  name: string;
 }
 
 interface NextStagesResponse {
-  options: NextStageOption[];
+  current_status: string;
+  current_stage: [number, string];
+  next_stages: StageOption[];
+  prev_stage: StageOption | null;
+  reachable_previous: StageOption[];
+  reachable_forward: StageOption[];
+  highest_unlocked_stage: number | null;
 }
 
 /**
  * GET /api/orders/{id}/next-stages
  *
- * Proxies FastAPI GET /api/orders/{id}/next-stages/. Returns valid forward
- * transitions for this order from its current stage (typically 1-2 options
- * but can include skip-ahead jumps in some stage families).
- *
- * Auth required.
+ * Forwards the backend's full 7-field envelope unchanged so the shell can
+ * render the stepper + transition action bar correctly.
  */
 export async function GET(
   _req: NextRequest,
@@ -49,12 +65,18 @@ export async function GET(
   }
   try {
     const client = await getServerClient();
-    const result = await client.getJson<
-      NextStagesResponse | NextStageOption[]
-    >(`/api/orders/${encodeURIComponent(id)}/next-stages/`);
-    // Normalize bare-array vs wrapper shapes — always return { options: [...] }.
-    const options = Array.isArray(result) ? result : (result?.options ?? []);
-    return NextResponse.json({ options });
+    const result = await client.getJson<NextStagesResponse>(
+      `/api/orders/${encodeURIComponent(id)}/next-stages/`,
+    );
+    return NextResponse.json({
+      current_status: result.current_status,
+      current_stage: result.current_stage,
+      next_stages: result.next_stages ?? [],
+      prev_stage: result.prev_stage ?? null,
+      reachable_previous: result.reachable_previous ?? [],
+      reachable_forward: result.reachable_forward ?? [],
+      highest_unlocked_stage: result.highest_unlocked_stage ?? null,
+    });
   } catch (err) {
     const status =
       err instanceof Error && "status" in err

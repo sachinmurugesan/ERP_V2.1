@@ -77,12 +77,18 @@ describe("Tabs — interactions", () => {
     expect(alpha.getAttribute("data-state")).toBe("inactive");
   });
 
-  it("active trigger className includes the white-bg + emerald-text active-state classes", () => {
+  it("active trigger has emerald-underline + emerald-50 bg + emerald-700 text (Vue parity, updated in feat/order-detail-shell)", () => {
     renderThree("a");
     const alpha = screen.getByRole("tab", { name: "Alpha" });
-    // The active state is encoded as data-[state=active]:* utility classes on the element.
-    expect(alpha.className).toMatch(/data-\[state=active\]:bg-white/);
+    // Active-state utility classes — Vue parity:
+    //   - emerald-600 bottom border (the underline)
+    //   - emerald-50 background tint
+    //   - emerald-700 text colour
+    expect(alpha.className).toMatch(/data-\[state=active\]:border-emerald-600/);
+    expect(alpha.className).toMatch(/data-\[state=active\]:bg-emerald-50/);
     expect(alpha.className).toMatch(/data-\[state=active\]:text-emerald-700/);
+    // The old foundation-PR pill-on-white style MUST NOT come back.
+    expect(alpha.className).not.toMatch(/data-\[state=active\]:bg-white/);
   });
 });
 

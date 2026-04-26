@@ -9,13 +9,21 @@
  * future order-detail / client-detail / factory-detail pages all
  * consume the same tab affordance.
  *
- * Design intent (matches `Design/screens/settings.jsx` chip-style triggers):
- *   - <TabsList>     horizontal flex container, subtle background
- *   - <TabsTrigger>  pill-shaped buttons; active state uses --brand
- *                    palette (brand-100 background + brand-800 text)
- *                    and a soft shadow (--sh-xs)
- *   - <TabsContent>  pads top, no internal border (the parent card
- *                    already provides framing)
+ * Design intent — Vue parity (matches the active-tab look from
+ * `frontend/src/views/orders/OrderDetail.vue:746-752`):
+ *   - <TabsList>     horizontal flex container, transparent background, with
+ *                    a single 1px slate border-bottom that the active trigger
+ *                    visually punches through with its emerald underline.
+ *   - <TabsTrigger>  flat (no pill, no shadow). Active state = emerald-600
+ *                    bottom border (-1px overlap with list border) + emerald-50
+ *                    background tint + emerald-700 text. Inactive = transparent
+ *                    background, slate-500 text, hover slate-700 + slate-50 bg.
+ *   - <TabsContent>  pads top, no internal border (parent card frames it).
+ *
+ * Updated in feat/order-detail-shell (commit 4) to match the Vue tab
+ * affordance for the order-detail shell. Foundation PR (#1) shipped a
+ * pill-on-grey style which read as "filter chips" rather than tabs — the
+ * emerald-underline pattern reads correctly as section navigation.
  *
  * Keyboard navigation (←/→/Home/End) is handled by Radix automatically.
  *
@@ -44,7 +52,9 @@ const TabsList = React.forwardRef<
   <TabsPrimitive.List
     ref={ref}
     className={cn(
-      "inline-flex h-10 items-center justify-start gap-1 rounded-lg bg-slate-50 p-1 text-slate-500",
+      // Horizontal flex of triggers; subtle slate baseline that active
+      // trigger overlaps with its emerald underline.
+      "inline-flex items-center justify-start gap-0 border-b border-slate-200 text-slate-500",
       className,
     )}
     {...props}
@@ -59,15 +69,16 @@ const TabsTrigger = React.forwardRef<
   <TabsPrimitive.Trigger
     ref={ref}
     className={cn(
-      // Base: pill-shaped, transparent
-      "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition-all",
-      // Hover (inactive): subtle slate
-      "hover:text-slate-700",
-      // Active state: brand-100 background, brand-800 text, subtle shadow
-      // (mirrors the chip-accent pattern used in settings.jsx reference)
-      "data-[state=active]:bg-white data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm",
+      // Base: flat, transparent, 2-px transparent bottom border so the active
+      // -mb-px trick lines up with the list's 1-px border-bottom precisely.
+      "inline-flex items-center justify-center whitespace-nowrap border-b-2 border-transparent px-4 py-2 text-sm font-medium transition-colors -mb-px",
+      // Inactive hover: subtle slate background + darker text
+      "hover:bg-slate-50 hover:text-slate-700",
+      // Active state — Vue parity: emerald-600 underline, emerald-50 bg tint,
+      // emerald-700 text.
+      "data-[state=active]:border-emerald-600 data-[state=active]:bg-emerald-50 data-[state=active]:text-emerald-700",
       // Focus + disabled
-      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500",
+      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-1",
       "disabled:pointer-events-none disabled:opacity-50",
       className,
     )}
