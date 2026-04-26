@@ -533,7 +533,81 @@ Surfaced after foundation PR #1's three proxy shapes turned out to be wrong. The
 - **Lint:** ✅ — 0 errors, 0 warnings.
 - **nginx config:** UNCHANGED (B3 sandbox).
 - **MIGRATED_PATHS.md:** UNCHANGED.
-- **Branch:** `feat/order-detail-shell` (7 commits).
-- **Push:** pending (after this commit lands).
-- **Merged:** NOT YET — PR will be created via `gh pr create` for user review.
+- **Branch:** `feat/order-detail-shell` (8 commits after R-16/R-17 verification + inspect-mode fix).
+- **Push:** ✅ — branch pushed to GitHub.
+- **Merged:** NOT YET — pending user review on PR.
+
+---
+
+## Live Verification (R-16 + R-17 — 2026-04-26 afternoon)
+
+Performed against the running sandbox at `http://localhost:3100/orders-shell-preview/{id}` after stopping any stale dev server, `rm -rf apps/web/.next`, and a fresh `preview_start "web-next"`. Authenticated as ADMIN. Seeded one DRAFT order (`6214e677...`) with a real client_id + factory_id; deleted after verification.
+
+### Bug found + fixed during verification: auto-redirect made shell un-inspectable in dev
+
+**Symptom:** Navigating to the sandbox URL rendered the shell for ~600 ms, then `<DeferredTabFallback>` fired `window.location.assign("/orders/{id}?tab=dashboard")`. In production behind nginx that URL serves the Vue legacy view; in this dev setup it 404s (Vue not running on port 3100). The shell was un-inspectable for visual verification.
+
+**Fix:** Added `?_inspect=1` query-param escape hatch:
+- New `inspectMode` prop on `<OrderTabs>` (read from `searchParams.get("_inspect") === "1"` in `<OrderShellClient>`)
+- Threaded down to `<DeferredTabFallback>` — when `inspectMode === true`, the auto-redirect `useEffect` returns early and the panel renders a static "Tab content not yet migrated. Open in legacy view →" link instead.
+- Bonus fix: the `<OrderTabs>` URL-sync `useEffect` was stripping `_inspect=1` from the URL on every tab change. Now preserves it.
+
+Production behavior unchanged: default (no `_inspect`) still redirects after 600 ms. The escape hatch is dev/QA only — no test or runtime cost in prod.
+
+### R-16 — three console checks
+
+```
+getComputedStyle(document.body).fontFamily
+  → "Manrope, ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", sans-serif"
+  → contains "Manrope" ✅
+
+document.styleSheets.length
+  → 2 ✅ (> 0)
+
+getComputedStyle(document.documentElement).getPropertyValue('--f-sans')
+  → "\"Manrope\", ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", sans-serif"
+  → non-empty ✅
+```
+
+**All 3 console checks PASS.** Console errors: **0**.
+
+### R-16 functional verification
+
+| Check | Result |
+|---|---|
+| Page heading "DRAFT ORDER" rendered | ✅ |
+| Stage chip "S1 Draft" rendered | ✅ |
+| Identity line (client · factory · PO) rendered | ✅ |
+| 17-circle stepper rendered (desktop) | ✅ |
+| 4 visible tabs for DRAFT status (Dashboard / Order Items / Queries / Files) | ✅ correct progressive disclosure |
+| Sticky tab bar with `sticky top-0 z-10 bg-white shadow-sm` classes | ✅ |
+| Transition action bar with 1 "Next: S2 · Pending PI" button | ✅ |
+| No factory-not-assigned banner (factory IS assigned) | ✅ |
+| No CLIENT_DRAFT banner (status is DRAFT) | ✅ |
+| Browser console errors | 0 ✅ |
+
+### R-17 visual fidelity
+
+**Reference:** [`Design/screens/procurement.jsx`](../../../Design/screens/procurement.jsx) (workflow stepper + line items + sidebar) + [`Design/screens/settings.jsx`](../../../Design/screens/settings.jsx) (sub-nav with chip-style triggers + content card).
+
+| Dimension | Score | Notes |
+|---|---|---|
+| Typography | **9** | Manrope loads. h1 = 20 px font-semibold. Stage chip = 11 px uppercase per `.chip` token. Stepper labels at 11 px. Tab labels at 14 px font-medium. Hierarchy clean. |
+| Layout | **9** | Sidebar + main content split mirrors `procurement.jsx`. Page header → stepper → action bar → sticky tab bar → tab content. Logical reading flow matches reference. |
+| Spacing | **8** | `.card` framing on stepper, action bar, tab content. ~16 px vertical gaps. Stepper at 1400 px ≈ 64 px per circle (tight but readable). Sandbox notice slightly prominent at top. |
+| Color | **9** | Brand emerald CTAs (Next button). Tab active = emerald-underline + emerald-50 bg + emerald-700 text (Vue parity). Stepper current = blue, upcoming = gray. Sandbox notice = blue-tinted. No off-brand colors. |
+| Component usage | **8** | `<StageChip>` ✅. New emerald-underline `<Tabs>` primitive ✅. `<CarryForwardStepper>` (Layer 2 lift with new `unlocked` status) ✅. Card wrappers use Tailwind `rounded-lg border` rather than `.card` class — same audit-rec-#6 cohort pattern as transporters/factory-ledger. |
+| **Average** | **8.6 / 10** | All five dimensions ≥ 7 → **R-17 PASS** |
+
+**Verdict:** PASS. No source fixes required beyond the inspect-mode escape-hatch fix above.
+
+### Caveats / known limitations surfaced during verification
+
+1. **Tablet (768 px) stepper overflow.** At 768 px with sidebar visible, the stepper's 17 circles need a horizontal scrollbar (compact mode helps but doesn't shrink enough). Acceptable per Phase 2 §2.6 spec (horizontal scroll is the documented fallback).
+2. **Mobile (375 px) sidebar layout.** The `(app)` layout's `<NavigationSidebar>` doesn't collapse responsively — it eats ~80% of mobile viewport on every migrated page. Pre-existing cross-page issue, NOT specific to the order-shell migration. Out of scope for this PR.
+3. **Sandbox notice prominence.** The blue notice at the top is informational but takes ~50 px of vertical space at desktop. If we want to tighten R-17 Spacing to 9, we could shrink it. Deferred — it's intentionally prominent because this is the sandbox phase.
+
+### Visual evidence
+
+Captured via Claude Preview MCP `preview_screenshot` at 1400×900 viewport. Inline screenshot rendered in the chat transcript. Per-shot description + R-16 raw values + R-17 scorecard in [`docs/migration/screenshots/2026-04-26-order-shell.md`](../screenshots/2026-04-26-order-shell.md). Binary PNG persistence still requires Puppeteer-with-cookie-bootstrap (same gap as the transporters migration) — not yet wired into the workflow.
 
