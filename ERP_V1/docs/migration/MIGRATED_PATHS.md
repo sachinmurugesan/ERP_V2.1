@@ -27,7 +27,7 @@ Every page migration PR must update this file.
 
 ---
 
-## Currently migrated (N=9)
+## Currently migrated (N=10)
 
 | Path | Migrated | PR | Notes |
 |------|----------|----|-------|
@@ -40,6 +40,7 @@ Every page migration PR must update this file.
 | `/products/{id}/edit` | 2026-04-24 | feat/migrate-products-form | EDIT form + right-sidebar image gallery with upload/delete (AlertDialog confirmation). Unsaved-changes guard on dirty form. |
 | `/finance/factory-ledger` | 2026-04-24 | feat/migrate-factory-ledger | Internal finance page gated by `FACTORY_LEDGER_VIEW` (FINANCE + SUPER_ADMIN bypass; ADMIN excluded per D-004 with dedicated `AdminForbiddenState` screen). 3-card summary (debit/credit/net), 10-column transactions table with sticky Date column on mobile horizontal scroll, xlsx/pdf downloads via new `useBlobDownload()` hook, date-range filter with asymmetry tooltip. Introduces the `<LedgerPage>` Layer 2 composed component (ported from ui-gallery + generalized with `columns` prop). Sibling finance tabs (receivables, client-ledger, payments) remain Vue. |
 | `/clients` | 2026-04-26 | feat/migrate-clients-list | Internal clients list (exact match only). Search input with 400ms debounce + per-page selector (25/50/100, default 50) + windowed pagination, 6-column table on desktop (Company Name with hex-coloured `<ClientAvatar>` · GSTIN · Location · Contact · IEC/PAN · Actions), per-row card layout below 768px. Cluster D fields (`factory_markup_percent`, `sourcing_commission_percent`) stripped server-side in the API proxy before reaching the browser. Add/Edit/Delete actions role-gated via new `CLIENT_CREATE`/`CLIENT_UPDATE`/`CLIENT_DELETE` permissions (CLIENT_DELETE is `[ADMIN]` only — stricter than backend by design). Introduces 3 Layer 2 lifts: `<Pagination>`, `<DeleteConfirmDialog>`, `<ClientAvatar>`. `/clients/new` and `/clients/{id}/edit` stay Vue (separate migration). |
+| `/transport` | 2026-04-26 | feat/migrate-transporters-list | Internal Service Providers list (exact match only). 6-column desktop table in priority order (Name with hex-coloured avatar · Roles · Location · Contact · GST/PAN · Actions), per-row card layout below 768px, **count badge on tablet** (md→lg) instead of pill wrap to save horizontal space. Search input with 400 ms debounce + per-page selector (25/50/100, default 50). New local `<ProviderRoleBadge>` consolidates the 4 service-provider categories (FREIGHT_FORWARDER · CHA · CFS · TRANSPORT) — uses design-system `chip-info`/`chip-ok`/`chip-warn`/`chip-purple` (the last added in this PR). Sensitive fields stripped server-side in the API proxy (email · address · country · bank_* · ifsc_code · notes — list page never displays them). Add/Edit/Delete actions role-gated via new `TRANSPORT_CREATE`/`TRANSPORT_UPDATE`/`TRANSPORT_DELETE` permissions (TRANSPORT_DELETE = `[ADMIN]` only, mirroring backend G-014). Three Vue bugs fixed: P-002 silent error catches → page-level error banner + dialog error surface, missing RoleGate on write actions → wrapped each, defensive `data.total \|\| providers.length` → trust backend always returns `total`. `/transport/new` and `/transport/{id}/edit` stay Vue (separate migration). |
 
 ---
 
