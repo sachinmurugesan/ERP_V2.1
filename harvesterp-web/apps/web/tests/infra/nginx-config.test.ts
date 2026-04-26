@@ -51,6 +51,7 @@ const EXPECTED_MIGRATED_PATHS = [
   "/products/new",
   "/finance/factory-ledger",
   "/clients",
+  "/transport",
 ];
 
 /**

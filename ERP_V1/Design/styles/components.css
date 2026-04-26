@@ -31,6 +31,7 @@
 .chip-info { background: color-mix(in oklch, var(--info) 14%, transparent); color: var(--info); border-color: color-mix(in oklch, var(--info) 25%, transparent); }
 .chip-accent { background: var(--brand-100); color: var(--brand-800); border-color: var(--brand-200); }
 .theme-dark .chip-accent { background: color-mix(in oklch, var(--brand-500) 18%, transparent); color: var(--brand-300); border-color: color-mix(in oklch, var(--brand-500) 30%, transparent); }
+.chip-purple { background: color-mix(in oklch, #A855F7 14%, transparent); color: #6B21A8; border-color: color-mix(in oklch, #A855F7 25%, transparent); }
 .chip-dot::before { content:''; width:6px; height:6px; border-radius:50%; background: currentColor; }
 
 /* ─── Cards ─── */
