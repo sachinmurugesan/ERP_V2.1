@@ -70,6 +70,11 @@ export const Resource = {
   PRODUCT_UPDATE:       "PRODUCT_UPDATE",
   PRODUCT_FACTORY_COST: "PRODUCT_FACTORY_COST", // G-012 / G-013: factory cost fields
 
+  // Clients
+  CLIENT_CREATE:        "CLIENT_CREATE",
+  CLIENT_UPDATE:        "CLIENT_UPDATE",
+  CLIENT_DELETE:        "CLIENT_DELETE",
+
   // Factory ledger (Cluster A — D-009)
   FACTORY_LEDGER_VIEW:  "FACTORY_LEDGER_VIEW",
   FACTORY_PAYMENTS:     "FACTORY_PAYMENTS",
@@ -134,6 +139,16 @@ export const PERMISSION_MATRIX: Readonly<Record<Resource, readonly UserRole[]>> 
   // Remaining internal roles (ADMIN, OPERATIONS, FINANCE) receive unstripped data.
   // VERIFIED: core/serializers.py + patches G-011–G-014 + G-017
   [Resource.PRODUCT_FACTORY_COST]: [ADMIN, OPERATIONS, FINANCE],
+
+  // --- Clients ---
+  // Backend (G-013, Patch 12) gates POST /api/clients/, PUT /api/clients/{id}/,
+  // and DELETE /api/clients/{id}/ to ADMIN | OPERATIONS | SUPER_ADMIN.
+  // CREATE + UPDATE mirror that scope. DELETE is intentionally STRICTER than
+  // backend (UI hides delete from OPERATIONS) — defense-in-depth UI hardening.
+  // Backend remains the source of truth for actual rejection.
+  [Resource.CLIENT_CREATE]: [ADMIN, OPERATIONS],
+  [Resource.CLIENT_UPDATE]: [ADMIN, OPERATIONS],
+  [Resource.CLIENT_DELETE]: [ADMIN],
 
   // --- Factory ledger (D-009 / Cluster A) ---
   // All 9 endpoints carry Depends(require_factory_financial) = [SUPER_ADMIN, FINANCE].
