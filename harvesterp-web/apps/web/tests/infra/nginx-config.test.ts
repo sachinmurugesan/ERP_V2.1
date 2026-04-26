@@ -55,13 +55,27 @@ const EXPECTED_MIGRATED_PATHS = [
 ];
 
 /**
- * Regex-matched (dynamic) paths. Each entry is a (human-readable ID, nginx
- * regex body). The tests verify the regex literal appears in both configs
- * (dev + prod, prod is 3x for the three portals).
+ * Regex-matched (dynamic) paths that exist in ALL three portal blocks.
+ * Each entry is a (human-readable ID, nginx regex body). The tests verify
+ * the regex literal appears in both configs (dev + prod; prod expects 3
+ * occurrences — one per portal).
  */
 const EXPECTED_DYNAMIC_ROUTES: Array<[string, string]> = [
   ["/products/{id}", "^/products/[^/]+$"],
   ["/products/{id}/edit", "^/products/[^/]+/edit$"],
+];
+
+/**
+ * Regex-matched dynamic paths scoped to the ADMIN portal only (the client
+ * and factory portals deliberately omit them — different UI/scoping). Test
+ * verifies the regex appears in dev + appears in prod EXACTLY ONCE
+ * (admin block) and NOT in the client or factory portal sections.
+ */
+const ADMIN_ONLY_DYNAMIC_ROUTES: Array<[string, string]> = [
+  // /orders/{uuid} — order detail shell (feat/orders-dashboard-tab,
+  // 2026-04-26). Admin only because the client and factory portals do
+  // not expose the same OrderDetail UI.
+  ["/orders/{uuid}", "^/orders/[0-9a-f-]{36}$"],
 ];
 
 /**
@@ -114,6 +128,13 @@ describe("nginx/nginx.dev.conf", () => {
 
   for (const [id, pattern] of EXPECTED_DYNAMIC_ROUTES) {
     it(`has regex location block for dynamic route: ${id}`, () => {
+      expect(conf).toContain(pattern);
+    });
+  }
+
+  for (const [id, pattern] of ADMIN_ONLY_DYNAMIC_ROUTES) {
+    it(`has regex location block for admin-only dynamic route: ${id}`, () => {
+      // Dev nginx has only one server block, so the regex appears once.
       expect(conf).toContain(pattern);
     });
   }
@@ -198,6 +219,39 @@ describe("nginx/nginx.conf (production)", () => {
         matches,
         `Expected 3 regex location blocks for ${id}`,
       ).toHaveLength(3);
+    }
+  });
+
+  it("admin-only dynamic routes appear EXACTLY ONCE (admin portal only)", () => {
+    // ADMIN_ONLY_DYNAMIC_ROUTES (e.g. /orders/{uuid}) must appear in the
+    // admin portal block only — NOT in client or factory blocks. The
+    // assertion is "exactly one occurrence in the entire prod config" +
+    // "the occurrence is anchored inside the admin portal section".
+    const adminStart = conf.indexOf("server_name admin.absodok.com");
+    const clientStart = conf.indexOf("server_name client.absodok.com");
+    const factoryStart = conf.indexOf("server_name factory.absodok.com");
+    expect(adminStart).toBeGreaterThan(-1);
+    expect(clientStart).toBeGreaterThan(adminStart);
+    expect(factoryStart).toBeGreaterThan(clientStart);
+
+    for (const [id, pattern] of ADMIN_ONLY_DYNAMIC_ROUTES) {
+      const escapedPattern = pattern.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const regex = new RegExp(escapedPattern, "g");
+      const matches = conf.match(regex);
+      expect(
+        matches,
+        `${id}: expected exactly 1 regex location block (admin only)`,
+      ).toHaveLength(1);
+
+      const offset = conf.indexOf(pattern);
+      expect(
+        offset,
+        `${id}: regex block must live inside the admin portal section`,
+      ).toBeGreaterThan(adminStart);
+      expect(
+        offset,
+        `${id}: regex block must NOT leak into the client portal section`,
+      ).toBeLessThan(clientStart);
     }
   });
 
