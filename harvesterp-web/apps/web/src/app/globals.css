@@ -152,6 +152,7 @@
   .chip-err  { background: color-mix(in oklch, var(--err) 14%, transparent); color: var(--err); border-color: color-mix(in oklch, var(--err) 25%, transparent); }
   .chip-info { background: color-mix(in oklch, var(--info) 14%, transparent); color: var(--info); border-color: color-mix(in oklch, var(--info) 25%, transparent); }
   .chip-accent { background: var(--brand-100); color: var(--brand-800); border-color: var(--brand-200); }
+  .chip-purple { background: color-mix(in oklch, #A855F7 14%, transparent); color: #6B21A8; border-color: color-mix(in oklch, #A855F7 25%, transparent); }
   .chip-dot::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 
   .card { background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--sh-xs); }
