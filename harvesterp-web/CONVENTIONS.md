@@ -349,6 +349,22 @@ Four gstack skills are mandatory gates inside the existing Phase 1/2/3 workflow.
 
 Discovered during the UI quality audit on 2026-04-26: the `feat/migrate-clients-list` merge passed lint + 489 tests + build + R-16 (DOM-only) yet shipped a page rendering Times New Roman because Next.js dev-server's CSS link 404'd. `/design-review` would have caught this at step 14.5; `/qa` would have caught it at the new R-16.
 
+### Rule R-19: Proxy shape verification before writing tests
+
+For every new Next.js API proxy route under `apps/web/src/app/api/`, before writing the test suite:
+
+1. **Curl-verify the actual backend endpoint** with a valid auth token and a real entity id.
+2. **Capture the actual response shape.** Save to `/tmp/probe-{endpoint}.json` or paste into the test file as a fixture.
+3. **Define the local TypeScript interface from the captured shape** — NOT from the OpenAPI spec. HarvestERP's order endpoints almost always return `unknown` / bare `dict` because most FastAPI handlers don't declare a `response_model`. The OpenAPI spec is correct about the path being typed; it's silent about the response body.
+4. **Mock that exact captured shape** in the proxy test (not an inferred or aspirational shape).
+5. **Include at least one assertion on a non-trivial wrapper field** unique to the actual backend response — not just that the bare list field is forwarded.
+
+Mocking an inferred or aspirational shape only validates that the proxy correctly handles mocked input. It does NOT validate that the proxy correctly handles real backend output.
+
+Discovered during `feat/order-detail-shell` Phase 1 (2026-04-26): foundation PR #1 had **3 proxies** with wrong shape contracts (`timeline`, `next-stages`, `transition`) that all passed their tests because the tests mocked inferred shapes. Each would have failed in production: `timeline` and `next-stages` returned empty arrays from non-existent fields; `transition` would have 422'd because `target_status` was passed in body instead of as a query parameter. Postmortem at `docs/tech-debt/foundation-proxy-shape-mismatch.md`.
+
+The fix is process, not tooling: never trust the spec or the research doc for response shape. Always probe the live backend first.
+
 ---
 
 ## Section 4: Technology Stack
