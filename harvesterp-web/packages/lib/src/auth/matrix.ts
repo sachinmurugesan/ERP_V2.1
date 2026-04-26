@@ -80,6 +80,11 @@ export const Resource = {
   TRANSPORT_UPDATE:     "TRANSPORT_UPDATE",
   TRANSPORT_DELETE:     "TRANSPORT_DELETE",
 
+  // Orders — stage workflow actions (added in feat/order-detail-shell)
+  ORDER_REOPEN:           "ORDER_REOPEN",
+  ORDER_TRANSITION:       "ORDER_TRANSITION",
+  ORDER_APPROVE_INQUIRY:  "ORDER_APPROVE_INQUIRY",
+
   // Factory ledger (Cluster A — D-009)
   FACTORY_LEDGER_VIEW:  "FACTORY_LEDGER_VIEW",
   FACTORY_PAYMENTS:     "FACTORY_PAYMENTS",
@@ -165,6 +170,23 @@ export const PERMISSION_MATRIX: Readonly<Record<Resource, readonly UserRole[]>> 
   [Resource.TRANSPORT_CREATE]: [ADMIN, OPERATIONS],
   [Resource.TRANSPORT_UPDATE]: [ADMIN, OPERATIONS],
   [Resource.TRANSPORT_DELETE]: [ADMIN],
+
+  // --- Orders — stage workflow actions ---
+  // ORDER_REOPEN: backend `reopen_order` (orders.py:2498) gates to ADMIN/SUPER_ADMIN.
+  //   Matrix entry [ADMIN] (SUPER_ADMIN bypass implicit). Mirrors backend.
+  // ORDER_TRANSITION: backend `transition_order` / `go_back_order` / `jump_to_stage`
+  //   (orders.py:2448, 2521, 2553) are CURRENTLY UNGATED on backend (any auth user
+  //   with order access can transition). UI gates to [ADMIN, OPERATIONS] as
+  //   defense in depth. Backend-fix tracked in
+  //   `docs/tech-debt/order-stage-transition-ungated.md`. Same role set is
+  //   enforced inside `apps/web/src/app/api/orders/[id]/transition/route.ts` etc.
+  // ORDER_APPROVE_INQUIRY: backend `approve_inquiry` (orders.py:826) only checks
+  //   `current_user.user_type == "INTERNAL"` — accepts ADMIN, OPERATIONS, AND
+  //   FINANCE. Matrix matches backend exactly. (Verified live 2026-04-26 in
+  //   feat/order-detail-shell Phase 1 — see migration log §9.)
+  [Resource.ORDER_REOPEN]:           [ADMIN],
+  [Resource.ORDER_TRANSITION]:       [ADMIN, OPERATIONS],
+  [Resource.ORDER_APPROVE_INQUIRY]:  [ADMIN, OPERATIONS, FINANCE],
 
   // --- Factory ledger (D-009 / Cluster A) ---
   // All 9 endpoints carry Depends(require_factory_financial) = [SUPER_ADMIN, FINANCE].
