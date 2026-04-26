@@ -1,6 +1,7 @@
 /**
  * order-detail-shell.test.tsx — Integration tests for the order-detail
- * shell page at /orders-shell-preview/:id (B3 sandbox).
+ * shell page at /orders/:id (promoted from the /orders-shell-preview/:id
+ * sandbox in feat/orders-dashboard-tab).
  *
  * Covers: header rendering, role gating, banners, stage stepper, transition
  * action bar, modals, deferred-tab fallback, deep-link surface, and mobile
@@ -16,21 +17,21 @@ import * as React from "react";
 import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-import { OrderShellClient } from "../../src/app/(app)/orders-shell-preview/[id]/_components/order-shell-client";
-import { OrderHeader } from "../../src/app/(app)/orders-shell-preview/[id]/_components/order-header";
-import { ClientDraftBanner } from "../../src/app/(app)/orders-shell-preview/[id]/_components/client-draft-banner";
-import { FactoryNotAssignedBanner } from "../../src/app/(app)/orders-shell-preview/[id]/_components/factory-not-assigned-banner";
-import { TransitionActionBar } from "../../src/app/(app)/orders-shell-preview/[id]/_components/transition-action-bar";
+import { OrderShellClient } from "../../src/app/(app)/orders/[id]/_components/order-shell-client";
+import { OrderHeader } from "../../src/app/(app)/orders/[id]/_components/order-header";
+import { ClientDraftBanner } from "../../src/app/(app)/orders/[id]/_components/client-draft-banner";
+import { FactoryNotAssignedBanner } from "../../src/app/(app)/orders/[id]/_components/factory-not-assigned-banner";
+import { TransitionActionBar } from "../../src/app/(app)/orders/[id]/_components/transition-action-bar";
 import {
   TransitionErrorBanner,
   navigateToFix,
-} from "../../src/app/(app)/orders-shell-preview/[id]/_components/transition-error-banner";
-import { OrderTabs } from "../../src/app/(app)/orders-shell-preview/[id]/_components/order-tabs";
+} from "../../src/app/(app)/orders/[id]/_components/transition-error-banner";
+import { OrderTabs } from "../../src/app/(app)/orders/[id]/_components/order-tabs";
 import type {
   OrderDetail,
   OrderTimelineResponse,
   NextStagesResponse,
-} from "../../src/app/(app)/orders-shell-preview/[id]/_components/types";
+} from "../../src/app/(app)/orders/[id]/_components/types";
 
 // ── Mocks ─────────────────────────────────────────────────────────────────────
 
@@ -40,7 +41,7 @@ vi.mock("next/navigation", () => ({
     replace: vi.fn(),
     prefetch: vi.fn(),
   }),
-  usePathname: () => "/orders-shell-preview/o1",
+  usePathname: () => "/orders/o1",
   useSearchParams: () => new URLSearchParams(),
 }));
 
