@@ -323,8 +323,13 @@ describe("stage chip tone mapping", () => {
     expect(stageToneFor(13)).toBe("chip chip-ok");
   });
 
-  it("falls back to the neutral chip for stages >=15 (bug fix)", () => {
-    expect(stageToneFor(15)).toBe("chip");
+  it("encodes the late stages 15-17 + falls through to neutral for out-of-range values", () => {
+    // Stages 15-17 added in orders-foundation PR (research §5.5):
+    //   15 DELIVERED → chip-ok ; 16 AFTER_SALES → chip-ok ; 17 COMPLETED → chip-accent
+    expect(stageToneFor(15)).toBe("chip chip-ok");
+    expect(stageToneFor(16)).toBe("chip chip-ok");
+    expect(stageToneFor(17)).toBe("chip chip-accent");
+    // Truly out-of-range (incl. Vue's phantom FACTORY_PAYMENT at 18) → neutral.
     expect(stageToneFor(18)).toBe("chip");
     expect(stageToneFor(22)).toBe("chip");
     expect(stageToneFor(99)).toBe("chip");

@@ -493,9 +493,11 @@ describe("StageChip (orders copy)", () => {
     expect(stageToneFor(13)).toBe("chip chip-ok");
   });
 
-  it("falls back to the neutral chip for stage ≥15 without crashing", () => {
-    expect(stageToneFor(15)).toBe("chip");
-    expect(stageToneFor(17)).toBe("chip");
+  it("encodes stages 15-17 with their late-stage tones + handles out-of-range gracefully", () => {
+    // Updated in orders-foundation PR (research §5.5):
+    //   15 DELIVERED → chip-ok ; 17 COMPLETED → chip-accent ; 99 (unknown) → neutral.
+    expect(stageToneFor(15)).toBe("chip chip-ok");
+    expect(stageToneFor(17)).toBe("chip chip-accent");
     expect(stageToneFor(99)).toBe("chip");
     render(<StageChip stageNumber={17} stageName="Completed" />);
     expect(
