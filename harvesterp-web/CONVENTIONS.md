@@ -261,9 +261,34 @@ Minimum verification:
 - Navigate to the migrated page.
 - Verify: data loads, interactive elements work, state transitions render correctly, browser console has zero errors.
 
+**Visual verification (CSS pipeline sanity).** After confirming the DOM elements render, open the page in a real browser and run these three console checks. **All three must pass** or the migration is not verified:
+
+```js
+// 1. Must contain "Manrope" — not Times New Roman
+getComputedStyle(document.body).fontFamily
+
+// 2. Must be > 0
+document.styleSheets.length
+
+// 3. Must be a non-empty string
+getComputedStyle(document.documentElement).getPropertyValue('--f-sans')
+```
+
+If any check fails, stop. The dev-server CSS manifest is desynced (the same regression that caused the 2026-04-26 incident). Recovery:
+
+```sh
+rm -rf apps/web/.next && pnpm dev
+```
+
+…then re-run all three checks. Do not proceed until clean.
+
+**Save a screenshot to `docs/migration/screenshots/<YYYY-MM-DD>-<page>.png` and reference it in the migration log.** The screenshot is the visual ground truth for that migration; future refactors that change the visual output must update it.
+
 Add the verification result to the migration log: in the **Issues** section if any bugs found, or in a dedicated **Live Verification** section if clean.
 
 Discovered during `feat/migrate-factory-ledger`: unit tests masked a `per_page=500` vs backend `le=200` mismatch that live verification caught in <15 minutes.
+
+The three-check console sanity + screenshot requirement was added 2026-04-26 after the UI quality audit found that R-16 originally only verified DOM structure — every migrated page passed R-16 while rendering in Times New Roman because the CSS link 404'd. The three checks would have caught the regression in <60 seconds. See `docs/migration/audits/ui-quality-audit-2026-04-26.md` for the full investigation.
 
 ### Rule R-17: Visual fidelity check before merge
 
