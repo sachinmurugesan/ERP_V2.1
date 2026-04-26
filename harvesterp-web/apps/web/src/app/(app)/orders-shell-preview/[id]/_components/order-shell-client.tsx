@@ -430,6 +430,7 @@ export function OrderShellClient({
         role={role}
         initialTab={searchParams.get("tab")}
         initialQuery={searchParams.get("query")}
+        inspectMode={searchParams.get("_inspect") === "1"}
       />
 
       {/* Modals */}

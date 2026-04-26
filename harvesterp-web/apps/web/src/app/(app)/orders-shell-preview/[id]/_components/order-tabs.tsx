@@ -210,6 +210,16 @@ interface OrderTabsProps {
   role: string | undefined;
   initialTab: string | null;
   initialQuery: string | null;
+  /**
+   * When true, the deferred-tab fallback shows its skeleton + a manual
+   * "Open in legacy view" link instead of auto-redirecting after 600 ms.
+   *
+   * Triggered by the `?_inspect=1` query param. Lets developers and
+   * R-16 / R-17 visual verification inspect the shell without it
+   * auto-bouncing to the (possibly unavailable) Vue legacy URL in dev
+   * setups that don't have nginx fronting both servers.
+   */
+  inspectMode?: boolean;
 }
 
 export function OrderTabs({
@@ -217,6 +227,7 @@ export function OrderTabs({
   role,
   initialTab,
   initialQuery,
+  inspectMode = false,
 }: OrderTabsProps): React.ReactElement {
   const router = useRouter();
 
@@ -234,12 +245,15 @@ export function OrderTabs({
   const [activeTab, setActiveTab] = React.useState(validInitial);
 
   // Keep URL in sync when tab changes (mirrors Vue OrderDetail.vue:358-362).
+  // Preserves the `_inspect=1` dev-only escape hatch so it doesn't get
+  // stripped by the URL rewrite on every tab change.
   React.useEffect(() => {
     const params = new URLSearchParams();
     params.set("tab", activeTab);
     if (initialQuery) params.set("query", initialQuery);
+    if (inspectMode) params.set("_inspect", "1");
     router.replace(`?${params.toString()}`, { scroll: false });
-  }, [activeTab, initialQuery, router]);
+  }, [activeTab, initialQuery, inspectMode, router]);
 
   return (
     <Tabs
@@ -282,7 +296,12 @@ export function OrderTabs({
 
       {visibleTabs.map((t) => (
         <TabsContent key={t.value} value={t.value}>
-          <DeferredTabFallback orderId={order.id} tabValue={t.value} tabLabel={t.label} />
+          <DeferredTabFallback
+            orderId={order.id}
+            tabValue={t.value}
+            tabLabel={t.label}
+            inspectMode={inspectMode}
+          />
         </TabsContent>
       ))}
     </Tabs>
@@ -296,6 +315,10 @@ export function OrderTabs({
  * skeleton for ~600 ms then redirects to the Vue page at
  * `/orders/{id}?tab={value}` (which nginx fall-through serves from Vue).
  *
+ * When `inspectMode` is true, the auto-redirect is suppressed and a
+ * manual "Open in legacy view" link is shown instead. Used for R-16 / R-17
+ * visual verification + dev setups that don't have nginx fronting Vue.
+ *
  * When an individual tab is migrated in Phase 2-4, replace its case in the
  * `<TabsContent>` map above with the real React component instead of
  * <DeferredTabFallback>.
@@ -304,19 +327,43 @@ function DeferredTabFallback({
   orderId,
   tabValue,
   tabLabel,
+  inspectMode,
 }: {
   orderId: string;
   tabValue: string;
   tabLabel: string;
+  inspectMode: boolean;
 }): React.ReactElement {
   React.useEffect(() => {
+    if (inspectMode) return undefined;
     const timer = setTimeout(() => {
       window.location.assign(
         `/orders/${encodeURIComponent(orderId)}?tab=${encodeURIComponent(tabValue)}`,
       );
     }, 600);
     return () => clearTimeout(timer);
-  }, [orderId, tabValue]);
+  }, [orderId, tabValue, inspectMode]);
+
+  if (inspectMode) {
+    return (
+      <div
+        className="flex flex-col items-center justify-center gap-2 rounded-lg border border-blue-200 bg-blue-50 py-10 text-center"
+        data-testid={`deferred-tab-${tabValue}`}
+      >
+        <p className="text-sm font-medium text-blue-800">{tabLabel} tab</p>
+        <p className="text-xs text-blue-700">
+          Tab content not yet migrated. In production this redirects to the
+          Vue legacy view.
+        </p>
+        <a
+          href={`/orders/${encodeURIComponent(orderId)}?tab=${encodeURIComponent(tabValue)}`}
+          className="mt-1 text-xs font-medium text-blue-700 underline-offset-2 hover:underline"
+        >
+          Open in legacy view →
+        </a>
+      </div>
+    );
+  }
 
   return (
     <div
