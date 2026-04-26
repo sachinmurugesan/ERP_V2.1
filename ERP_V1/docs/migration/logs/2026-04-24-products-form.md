@@ -581,3 +581,44 @@ If a component will be used by the current migration plus a known upcoming one (
 - Preview verification: all 4 modes render correctly with prefilled data + live backend; no browser console errors.
 - nginx: dev + prod (3 portals) updated; MIGRATED_PATHS 4 → 7.
 - Migration branch: `feat/migrate-products-form`.
+
+---
+
+## Visual fidelity (R-17, retroactive — added 2026-04-26)
+
+Audited live in a real browser (Claude Preview MCP) on 2026-04-26 after the dev-server CSS-pipeline regression of that morning was resolved by `rm -rf apps/web/.next` + restart. Full root-cause analysis of the regression is in [`docs/migration/audits/ui-quality-audit-2026-04-26.md`](../audits/ui-quality-audit-2026-04-26.md).
+
+This migration shipped three pages in one PR: `/products/new`, `/products/{id}` (read-only detail), and `/products/{id}/edit`. The audit covers all three.
+
+**Reference compared against:** [`Design/screens/inventory.jsx`](../../../Design/screens/inventory.jsx) (form sections + image gallery sidebar)
+
+**Scorecard for `/products/new` and `/products/{id}/edit` (shared form components):**
+
+| Dimension | Score | Notes |
+|---|---|---|
+| Typography | 8 | Manrope loads. Section headings render at the expected scale; field labels at 13 px. |
+| Layout | 8 | 5-section form (basic / dimensions / categorization / packaging / images) + sticky bottom action bar matches reference. Image sidebar on `/edit` mirrors gallery on `/products/{id}`. |
+| Spacing | 7 | Section card framing acceptable. Field-to-field gap inside each section reads ~2 px tighter than reference because primitive `<Input>` height is 36 px vs DS `.input` ~32 px. |
+| Color | 8 | Brand emerald primary action ("Save / Save changes"), neutral secondary ("Cancel"). Validation error text in `--bad` token. |
+| Component usage | 7 | Form fields use primitive `<Input>` / `<Select>` / `<Textarea>` (Tailwind `h-9 px-3 text-sm` 14 px) where DS `.input` is 13 px. Visible drift but consistent with the newer-cohort pattern (factory-ledger + clients also primitive-only). |
+| **Average** | **7.6 / 10** | All five dimensions ≥ 7 → **R-17 PASS** |
+
+**Scorecard for `/products/{id}` (read-only detail):**
+
+| Dimension | Score | Notes |
+|---|---|---|
+| Typography | 9 | Manrope loads. ReadOnlyField labels render at 11 px uppercase (close to `.label` spec, missing the 0.6 px letter-spacing). Values at 13 px. |
+| Layout | 9 | Two-column layout: image gallery on left, ReadOnlyField grid on right. Matches `inventory.jsx` read-only mode. |
+| Spacing | 8 | `.card` framing on the two columns; consistent grid spacing on the field pairs. |
+| Color | 9 | Brand emerald "Edit" CTA in the page header; neutral text tones throughout. |
+| Component usage | 8 | Predominantly primitives + a custom `ReadOnlyField` that uses raw `text-[11px] font-semibold uppercase text-slate-500` — same intent as DS `.label` but inline-utility approach. |
+| **Average** | **8.6 / 10** | All five dimensions ≥ 7 → **R-17 PASS** |
+
+**Verdict:** PASS for all three pages. No fixes required.
+
+**Caveats / known drift:**
+- Primitive `<Input>` is 14 px / `font-medium` / `rounded-md` (6 px). DS `.input` is 13 px / 600 / `--r-md` (10 px). 1 px font + 4 px radius drift; not catastrophic but visible if you A/B against the reference. Documented as audit recommendation #7 (primitive token alignment).
+- `ReadOnlyField` uses raw Tailwind for the label rather than the `.label` class. Letter-spacing differs (`0` vs `.6 px`). Same intent, different exact pixels.
+- Image gallery thumbnails on `/edit` use plain `<img>` (no `next/image`). Loads correctly but no automatic responsive sizing.
+
+**Audit context:** This page passed the original R-16 (live happy-path verification) at merge time — all 4 modes (new / edit / view / clone) verified with real backend data. The retroactive R-17 audit was triggered by a user-reported visual breakage on `/clients` on 2026-04-26 that turned out to be a dev-server CSS 404 affecting all 8 migrated pages, not a per-page defect. After clean `.next` rebuild, every migrated page (including these three) renders correctly with Manrope and brand-emerald CTAs. R-17 was added to CONVENTIONS.md as a result; this section back-fills the gate retroactively.

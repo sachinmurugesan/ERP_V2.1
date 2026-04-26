@@ -425,6 +425,33 @@ Observed:
 
 ---
 
+## Visual fidelity (R-17, retroactive — added 2026-04-26)
+
+Audited live in a real browser (Claude Preview MCP) on 2026-04-26 after the dev-server CSS-pipeline regression of that morning was resolved by `rm -rf apps/web/.next` + restart. Full root-cause analysis of the regression is in [`docs/migration/audits/ui-quality-audit-2026-04-26.md`](../audits/ui-quality-audit-2026-04-26.md).
+
+**Reference compared against:** [`Design/screens/sales.jsx`](../../../Design/screens/sales.jsx)
+
+**Scorecard (R-17, 5 dimensions × 0–10, threshold = 7):**
+
+| Dimension | Score | Notes |
+|---|---|---|
+| Typography | 8 | Manrope loads from `--f-sans`. Table headers render at 11 px uppercase 0.6 px letter-spacing per `.label` token. Body cells at 13 px (DS body size). |
+| Layout | 8 | 8-column orders table + filter row + search input matches `sales.jsx` reference. Stage chip placement matches the column ordering decision (Stage in column 4). |
+| Spacing | 7 | `.tbl` row padding + `.card` framing land within reference. Filter row → table gap is slightly tighter than reference (~12 px vs ~16 px) but readable. |
+| Color | 8 | StageChip composed component uses `.chip-warn` / `.chip-good` / `.chip-info` etc. tones — full DS chip palette. Brand emerald CTAs. |
+| Component usage | 8 | 10 `.btn` / 3 `.card` / 1 `.chip` / 1 `.tbl` / 3 `.input` in source. The single `.chip` count understates adoption — `StageChip` itself emits `.chip chip-X` so every stage badge is a DS class. |
+| **Average** | **7.8 / 10** | All five dimensions ≥ 7 → **R-17 PASS** |
+
+**Verdict:** PASS. No fixes required.
+
+**Caveats / known drift:**
+- Stages outside 1–14 fall back to neutral `.chip` (no tone class) — known choice from dashboard migration; matches reference.
+- Removed "Filters" + "Export" buttons (per Phase 2 decisions) leave a slight asymmetry vs the Vue source's right-side button cluster, but the reference screen does not include them either.
+
+**Audit context:** This page passed the original R-16 (live happy-path verification) at merge time. The retroactive R-17 audit was triggered by a user-reported visual breakage on `/clients` on 2026-04-26 that turned out to be a dev-server CSS 404 affecting all 8 migrated pages, not a per-page defect. After clean `.next` rebuild, every migrated page (including this one) renders correctly with Manrope and brand-emerald CTAs. R-17 was added to CONVENTIONS.md as a result; this section back-fills the gate retroactively.
+
+---
+
 ## Issues encountered and resolutions
 
 _(empty — populated as work progresses)_

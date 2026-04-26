@@ -505,3 +505,33 @@ None this migration. R-14 (RSC prop forwarding under `exactOptionalPropertyTypes
 - **Committed in PR:** (pending — branch feat/migrate-factory-ledger, 5 commits)
 - **Merged:** not yet (awaiting review per scope boundary)
 - **Deployed to staging / production:** —
+
+---
+
+## Visual fidelity (R-17, retroactive — added 2026-04-26)
+
+Audited live in a real browser (Claude Preview MCP) on 2026-04-26 after the dev-server CSS-pipeline regression of that morning was resolved by `rm -rf apps/web/.next` + restart. Full root-cause analysis of the regression is in [`docs/migration/audits/ui-quality-audit-2026-04-26.md`](../audits/ui-quality-audit-2026-04-26.md).
+
+Two states verified: (1) initial empty state ("Select a factory to view their ledger"); (2) populated state with `Acme Test Factory` selected (₹0.00 summary tiles + "No ledger entries found" empty-table message — there are no transactions in the seeded test DB).
+
+**Reference compared against:** [`Design/screens/finance.jsx`](../../../Design/screens/finance.jsx)
+
+**Scorecard (R-17, 5 dimensions × 0–10, threshold = 7):**
+
+| Dimension | Score | Notes |
+|---|---|---|
+| Typography | 8 | Manrope loads. KPI tile values render at 24 px (`text-2xl`) where the DS `.kpi-value` class is 30 px tabular-nums. Headings + body otherwise on-spec. |
+| Layout | 9 | Factory selector (top) → 4-tile summary row → transactions table → PDF/Excel export buttons. Matches `finance.jsx` reference. |
+| Spacing | 8 | `<Card>` framing on summary tiles produces correct gutters. Empty-state messaging is centered and properly spaced. |
+| Color | 8 | Brand emerald primary action (Apply / Export). Currency formatting uses `--n-700` neutral; no off-token colors. |
+| Component usage | 7 | Zero DS class adoption (0 `.btn` / 0 `.card` / 0 `.chip` / 0 `.tbl` / 0 `.input`). Built entirely from primitive `<Card>` / `<Table>` / `<Input>` / `<Button>` via the `<LedgerPage>` composed component. Functional + visually close to reference, but consistency-with-older-cohort is weakest. |
+| **Average** | **8.0 / 10** | All five dimensions ≥ 7 → **R-17 PASS** |
+
+**Verdict:** PASS. No fixes required.
+
+**Caveats / known drift:**
+- KPI numerals at 24 px instead of 30 px is the most visible delta vs reference. Promoting `<LedgerPage>` summary tiles to use `.kpi-value` would close it; tracked as part of audit recommendation #6 (DS-class-adoption decision).
+- Export buttons (PDF / Excel) correctly disabled when no transactions; matches reference's "no-data" mode.
+- AdminForbiddenState (D-004) not exercised in this run — FINANCE seeded user not yet available; unit tests cover the success path.
+
+**Audit context:** This page passed the original R-16 (live happy-path verification) at merge time. The retroactive R-17 audit was triggered by a user-reported visual breakage on `/clients` on 2026-04-26 that turned out to be a dev-server CSS 404 affecting all 8 migrated pages, not a per-page defect. After clean `.next` rebuild, every migrated page (including this one) renders correctly with Manrope and brand-emerald CTAs. R-17 was added to CONVENTIONS.md as a result; this section back-fills the gate retroactively.

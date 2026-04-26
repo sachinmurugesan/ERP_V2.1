@@ -606,4 +606,29 @@ Observed:
 - Committed on branch: `feat/migrate-products-list`.
 - **Awaiting: user review + approval to merge.**
 
-_(empty — populated at end)_
+---
+
+## Visual fidelity (R-17, retroactive — added 2026-04-26)
+
+Audited live in a real browser (Claude Preview MCP) on 2026-04-26 after the dev-server CSS-pipeline regression of that morning was resolved by `rm -rf apps/web/.next` + restart. Full root-cause analysis of the regression is in [`docs/migration/audits/ui-quality-audit-2026-04-26.md`](../audits/ui-quality-audit-2026-04-26.md).
+
+**Reference compared against:** [`Design/screens/inventory.jsx`](../../../Design/screens/inventory.jsx)
+
+**Scorecard (R-17, 5 dimensions × 0–10, threshold = 7):**
+
+| Dimension | Score | Notes |
+|---|---|---|
+| Typography | 9 | Manrope loads. Multi-line cell content (product code + dimension subtitle, contact name + phone) hits the 11/13/13 size cadence used in the reference. Part codes render in `--brand-700`. |
+| Layout | 9 | Tabs (Products / Bin) + filter row + 8-column table + bulk action bar all match the `inventory.jsx` reference. Mobile card layout swaps in cleanly at the breakpoint. |
+| Spacing | 8 | `.card` framing + `.tbl` row padding align with reference. Accordion expand/collapse for variants stays inside the row's spacing budget. |
+| Color | 9 | Brand emerald CTAs, full DS chip palette (`.chip-warn` / `.chip-good` / `.chip-neutral`), bulk-action bar uses brand background. Status indicators consistent. |
+| Component usage | 9 | 18 `.btn` / 3 `.card` / 9 `.chip` / 2 `.tbl` / 7 `.input` in source — **highest DS-class adoption of any migrated page.** Closest to reference of any page in the audit. |
+| **Average** | **8.8 / 10** | All five dimensions ≥ 7 → **R-17 PASS** |
+
+**Verdict:** PASS. No fixes required.
+
+**Caveats / known drift:**
+- Mobile per-row card uses raw `bg-white rounded-xl` rather than `.card`. Visually equivalent because both resolve to white background + token radius, but the contract was "use `.card`". Logged as low-priority cleanup.
+- Sort affordances absent (deferred per Phase 2). Column headers render statically; no `aria-sort`.
+
+**Audit context:** This page passed the original R-16 (live happy-path verification) at merge time. The retroactive R-17 audit was triggered by a user-reported visual breakage on `/clients` on 2026-04-26 that turned out to be a dev-server CSS 404 affecting all 8 migrated pages, not a per-page defect. After clean `.next` rebuild, every migrated page (including this one) renders correctly with Manrope and brand-emerald CTAs. R-17 was added to CONVENTIONS.md as a result; this section back-fills the gate retroactively.

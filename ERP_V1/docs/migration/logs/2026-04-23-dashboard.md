@@ -420,6 +420,33 @@ Two rules surfaced during this migration that may be worth promoting to CONVENTI
 
 ---
 
+## Visual fidelity (R-17, retroactive — added 2026-04-26)
+
+Audited live in a real browser (Claude Preview MCP) on 2026-04-26 after the dev-server CSS-pipeline regression of that morning was resolved by `rm -rf apps/web/.next` + restart. Full root-cause analysis of the regression is in [`docs/migration/audits/ui-quality-audit-2026-04-26.md`](../audits/ui-quality-audit-2026-04-26.md).
+
+**Reference compared against:** [`Design/screens/dashboard-v3.jsx`](../../../Design/screens/dashboard-v3.jsx)
+
+**Scorecard (R-17, 5 dimensions × 0–10, threshold = 7):**
+
+| Dimension | Score | Notes |
+|---|---|---|
+| Typography | 8 | Manrope loads from `--f-sans`. KPI values use `.kpi-value` (30 px tabular-nums); KPI labels use `.kpi-label` (11 px uppercase, 0.6 px letter-spacing). Heading hierarchy matches reference. |
+| Layout | 8 | 4-column KPI row + 2-column "Active Shipments / Recent Activity" split matches `dashboard-v3.jsx` structurally. Sidebar + main content gutter consistent. |
+| Spacing | 8 | `.card` framing on KPI tiles produces correct padding; row gaps in 2-column split land within 4 px of reference. |
+| Color | 9 | All five brand emerald tones from tokens (`--brand-50..950`); `--bg` warm neutral; KPI tones use DS chip palette (warn / good / info). No off-token colors. |
+| Component usage | 8 | 7 `.btn` / 5 `.card` / 2 `.chip` / 2 `.tbl` / 0 `.input` in source — high DS-class adoption. Closest of any migrated page to the original "use the design-system class" pattern. |
+| **Average** | **8.2 / 10** | All five dimensions ≥ 7 → **R-17 PASS** |
+
+**Verdict:** PASS. No fixes required.
+
+**Caveats / known drift:**
+- KPI tile background tints (`bg-emerald-50/30` etc. on the inner content) are Tailwind utilities rather than DS tokens, but this is per-tile decoration and acceptable.
+- Empty-state CTAs ("Active Shipments" / "Recent Activity") use the proposed Decision #7 pattern — every empty state names a next action; this is now reflected as a candidate rule above.
+
+**Audit context:** This page passed the original R-16 (live happy-path verification) at merge time. The retroactive R-17 audit was triggered by a user-reported visual breakage on `/clients` on 2026-04-26 that turned out to be a dev-server CSS 404 affecting all 8 migrated pages, not a per-page defect. After clean `.next` rebuild, every migrated page (including this one) renders correctly with Manrope and brand-emerald CTAs. R-17 was added to CONVENTIONS.md as a result; this section back-fills the gate retroactively.
+
+---
+
 ## Issues encountered and resolutions
 
 _(empty — populated as work progresses)_

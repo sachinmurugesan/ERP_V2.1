@@ -544,9 +544,43 @@ None this migration. R-14 (RSC prop forwarding) and R-16 (live happy-path verifi
 
 ---
 
-## Proposed rules for CONVENTIONS.md (if any)
+## Visual fidelity (R-17, retroactive — added 2026-04-26)
 
-_(empty — populated toward end of migration)_
+**This is the page that triggered the entire audit.** The user reported (correctly) on 2026-04-26 that `/clients` rendered with: a giant serif heading, a floating "0 clients" subtitle with no container framing, a misaligned search icon with a stray duplicate, and no visible "Add your first client" CTA — i.e. the page looked completely unstyled.
+
+Investigation found the root cause was **not** in this page's source. Every dev-server page was emitting `<link href="/_next/static/css/app/layout.css?v=…">` to a 404 URL while the actual compiled CSS lived at `b67678ce9ef020a7.css`. All 8 migrated pages were affected; `/clients` was just the most visually catastrophic because it had the lowest DS-class adoption (0/0/0/0/0) and therefore relied 100% on Tailwind utilities for its styling, all of which failed when the stylesheet 404'd. Fixed by stopping the dev server, `rm -rf apps/web/.next`, restarting, and waiting for the first compile. Full root-cause analysis: [`docs/migration/audits/ui-quality-audit-2026-04-26.md`](../audits/ui-quality-audit-2026-04-26.md).
+
+After the CSS fix, this page was re-audited live in a real browser (Claude Preview MCP) — every reported issue resolved without any change to the page source.
+
+**Reference compared against:** No dedicated reference screen for `/clients` in `Design/screens/`; closest analogue is [`Design/screens/sales.jsx`](../../../Design/screens/sales.jsx) (header + search + table + pagination cadence).
+
+**Scorecard (R-17, 5 dimensions × 0–10, threshold = 7):**
+
+| Dimension | Score | Notes |
+|---|---|---|
+| Typography | 8 | Manrope loads from `--f-sans` (post-fix verified: `getComputedStyle(body).fontFamily.includes("Manrope")` → true). Heading "Clients" renders at `text-xl` (20 px) per source intent. Sub-line count text at 13 px `--n-500`. |
+| Layout | 8 | Header (h1 + count subtitle on left, "Add Client" CTA on right) → search bar row → 6-column desktop table / mobile card stack → pagination footer with rows-per-page selector. Matches the `sales.jsx` cadence. |
+| Spacing | 7 | Card framing around the search input + table is correct post-CSS-fix. Mobile card view spacing matches the products-list mobile pattern. The search icon now correctly inset (`pl-9` / `absolute left-3 top-1/2 -translate-y-1/2` resolve correctly). |
+| Color | 8 | Brand emerald "Add Client" button (gated by `CLIENT_CREATE`); role chip palette via shared `client-avatar`; `--bg` warm neutral. |
+| Component usage | 7 | Zero DS class adoption (0 `.btn` / 0 `.card` / 0 `.chip` / 0 `.tbl` / 0 `.input`). Built entirely from primitives + composed `<Pagination>` / `<DeleteConfirmDialog>` / `<ClientAvatar>`. Functional + visually correct after CSS fix, but lowest DS-class adoption in the cohort. |
+| **Average** | **7.6 / 10** | All five dimensions ≥ 7 → **R-17 PASS** |
+
+**User-reported issues (2026-04-26) — final disposition:**
+
+| Reported issue | Cause | Resolution |
+|---|---|---|
+| Floating "0 clients" subtitle without container | `<p className="text-sm text-slate-500">` — Tailwind utilities failed because `layout.css` returned 404 | Resolved by clean `.next` rebuild. No source change. |
+| Search input + icon misaligned, stray duplicate icon | `pl-9` + `absolute left-3 top-1/2 -translate-y-1/2` failed; native `<input type="search">` clear-X became visible | Resolved by clean `.next` rebuild. No source change. |
+| No "Add your first client" CTA visible | Button DOM-rendered but `bg-primary text-primary-foreground` failed → black text on white | Resolved by clean `.next` rebuild. No source change. |
+| Giant serif heading | `text-xl font-semibold` failed; `--f-sans` empty → fell back to Times New Roman | Resolved by clean `.next` rebuild. No source change. |
+
+**Verdict:** PASS. No source fixes required. All four user-reported issues were symptoms of the dev-server CSS-404 regression, not page-source defects.
+
+**Caveats / known drift:**
+- Zero DS-class adoption — same audit observation as factory-ledger. Tracked under audit recommendation #6 (DS-class-adoption decision: either back-port `.btn`/`.card`/`.input`/`.chip`/`.tbl` to clients + factory-ledger, or update primitives to apply DS classes internally).
+- No dedicated reference screen for `/clients`; closest comparable is `sales.jsx`. A `clients.jsx` reference screen would tighten future audits.
+
+**Audit context:** This is the page that surfaced the CSS-pipeline bug and triggered the audit that produced R-17 itself. The user's screenshot was correct — the page WAS broken — but the root cause was a Next.js dev-server manifest desync after multiple `rm -rf .next` during the same morning's Docker debugging session, not anything this PR introduced. R-17 was added to CONVENTIONS.md as a direct response to this incident; this section back-fills the gate for the migration that uncovered the gap.
 
 ---
 
