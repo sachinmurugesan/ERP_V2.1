@@ -473,6 +473,19 @@ N=10 → N=11. Row added for `/orders/{uuid}` with full annotation: regex shape,
 - **Date resolved:** 2026-04-26 21:10
 - **Tests added:** 2 in `tests/app/order-detail-shell.test.tsx` — (a) deferred-fallback assertion rewritten for items tab with explicit "no redirect" check, (b) regression test that dashboard tab does NOT render the deferred fallback testid.
 
+### Issue 6: deferred-fallback removal blocked access to 13 unmigrated tabs (REGRESSION)
+- **Date raised:** 2026-04-26 22:15
+- **Problem:** Pre-merge audit: removing the auto-redirect in Issue #4 left ADMIN users with no way to reach Vue's OrderDetail.vue, which still owns Items / Payments / Production / Packing / Booking / Sailing / Shipping Docs / Customs / After-Sales / Final Draft / Queries / Files / Landed Cost. After the nginx flip, every UUID-shaped `/orders/{uuid}` request goes to Next.js — including `?tab=items` etc. (query strings are not part of nginx location matching). Vue's OrderDetail.vue lives at `/orders/:id` exactly; that path is now Next.js. `/orders/{uuid}/edit` is a different Vue page (line-item edit), not the tab shell. Net effect: 13 of 14 admin-portal order tabs unreachable.
+- **Root cause:** Issue #4's fix (remove auto-redirect, replace with static panel + dashboard-only link) over-corrected. Removing the loop was correct, but the strangler-fig invariant "users can always reach the legacy view until the new view is ready" was broken.
+- **Fix applied:**
+  1. **nginx:** added `location ^~ /_legacy/ { proxy_pass http://vue_upstream/; ... }` to `nginx.dev.conf` and to the **admin portal block only** of `nginx.conf`. The `^~` modifier wins over the `/orders/{uuid}` regex; `proxy_pass …vue_upstream/` (trailing slash) strips the `/_legacy/` prefix so Vue receives the original path unchanged. No Vue source change needed.
+  2. **`<DeferredTabFallback>`:** added a second escape-hatch link `Open in legacy system →` pointing at `/_legacy/orders/{orderId}?tab={tabValue}`. The "Go to dashboard tab" link is preserved as a secondary action. orderId is now plumbed back into the component (was removed in Issue #4 along with inspectMode).
+  3. **`tests/app/order-detail-shell.test.tsx`:** updated the deferred-fallback test to assert both links exist with correct hrefs.
+  4. **`tests/infra/nginx-config.test.ts`:** added 2 assertions (dev + prod-admin-only) verifying the `/_legacy/` block exists and uses the trailing-slash proxy_pass form.
+  5. **`docs/migration/MIGRATED_PATHS.md`:** updated `/orders/{uuid}` row note to document the two escape hatches.
+- **Date resolved:** 2026-04-26 22:30
+- **Tests added:** +2 (nginx-config dev + prod) + 1 modified existing assertion (asserts both links). Total 749 → 751.
+
 ### Issue 5: vitest mock queue leak (factory-payments tests)
 - **Date raised:** 2026-04-26 19:45
 - **Problem:** First proxy-test run showed 5 tests failing in the factory-payments group with mock-state inversions ("expected 403 got 502", "expected 404 got 403", "expected 403 got 404"). The pattern strongly suggested mock queue leakage between tests.
@@ -537,4 +550,41 @@ Clicked Order Items tab. URL becomes `?tab=items`. The DeferredTabFallback panel
 - ✅ Other 13 tabs show inline fallback (no redirect loop)
 - ✅ Migration log fully updated
 
-Branch: `feat/orders-dashboard-tab` (6 commits + 1 amend on Commit 3 + screenshot+log update commit pending). Push + PR pending.
+Branch: `feat/orders-dashboard-tab` (6 commits + 1 amend on Commit 3 + R-16/R-17 docs commit + Issue-#6 regression-fix commit). Pushed.
+
+### 8.5 Pre-merge regression check (Issue #6 fix)
+
+Verification of the fix (post Issue #6):
+
+**Unit tests (passing):**
+- `tests/app/order-detail-shell.test.tsx`: deferred-fallback test asserts
+  the `Open in legacy system →` link renders with the exact
+  `/_legacy/orders/{id}?tab={value}` href, alongside the
+  `Go to dashboard tab` link.
+- `tests/infra/nginx-config.test.ts`: 2 new assertions verify
+  `location ^~ /_legacy/` exists in the dev config and EXACTLY ONCE in
+  the prod admin portal section (not in client/factory blocks), and
+  uses the trailing-slash `proxy_pass http://vue_upstream/` form so the
+  prefix is stripped before forwarding to Vue.
+
+**Live R-16 attempted but blocked:** the local Postgres on `:5432` was
+not running when the re-verification was attempted (backend returned
+`OperationalError: connection refused`). The DOM-level evidence in §8.1
+(captured before this commit) already confirms the fallback panel
+renders for non-dashboard tabs; the only delta in the fix is the
+addition of the second link, which is unit-test-verified end-to-end
+including the exact href format. A future R-16 sweep with a live
+backend should re-confirm that clicking the legacy link transitions
+the user to the Vue OrderDetail.vue render of `?tab=items` — this is
+recommended as the next migration's entry-point smoke test.
+
+**Routing mechanism (unchanged behaviour, well-understood):**
+- nginx receives `/_legacy/orders/{uuid}?tab=items`
+- `location ^~ /_legacy/` wins (prefix priority over the
+  `/orders/{uuid}` regex)
+- `proxy_pass http://vue_upstream/` strips the `/_legacy/` prefix
+- Vue receives `/orders/{uuid}?tab=items` and renders OrderDetail.vue
+  with the Items tab active — same path Vue served before the migration.
+
+**Strangler-fig invariant restored:** ADMIN users can reach all 14
+tabs again (1 via Next.js, 13 via the legacy link).

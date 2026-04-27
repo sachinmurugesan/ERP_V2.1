@@ -307,7 +307,11 @@ export function OrderTabs({
               role={role}
             />
           ) : (
-            <DeferredTabFallback tabValue={t.value} tabLabel={t.label} />
+            <DeferredTabFallback
+              orderId={order.id}
+              tabValue={t.value}
+              tabLabel={t.label}
+            />
           )}
         </TabsContent>
       ))}
@@ -321,21 +325,34 @@ export function OrderTabs({
  *
  * Pre-promotion (when /orders/{uuid} still routed to Vue) this component
  * auto-redirected to the Vue legacy view after a 600 ms skeleton flash.
- * After the nginx flip in feat/orders-dashboard-tab, that redirect would
- * loop back to this same Next.js page, so it has been REMOVED. The tab
- * now renders a static "Tab not yet migrated" message and a link to the
- * dashboard tab (which IS migrated).
+ * After the nginx flip, that redirect would loop back to this same
+ * Next.js page, so the auto-redirect has been REMOVED.
+ *
+ * Renders two manual escape hatches instead:
+ *   1. "Open in legacy system" → `/_legacy/orders/{id}?tab={value}`.
+ *      nginx routes /_legacy/* to vue_upstream with the prefix stripped,
+ *      so Vue receives /orders/{id}?tab=items and renders OrderDetail.vue
+ *      normally. Without this link, ADMIN users would lose access to all
+ *      13 unmigrated tabs the moment the nginx flip lands (Items,
+ *      Payments, Production, Packing, Booking, Sailing, Shipping Docs,
+ *      Customs/BOE, After-Sales, Final Draft, Queries, Files,
+ *      Landed Cost) — that's the regression this link prevents.
+ *   2. "Go to dashboard tab" → `?tab=dashboard`. Stays inside Next.js
+ *      since the dashboard IS migrated.
  *
  * As each remaining tab is migrated in subsequent PRs, replace its case
  * in the `<TabsContent>` map above with the real React component.
  */
 function DeferredTabFallback({
+  orderId,
   tabValue,
   tabLabel,
 }: {
+  orderId: string;
   tabValue: string;
   tabLabel: string;
 }): React.ReactElement {
+  const legacyHref = `/_legacy/orders/${encodeURIComponent(orderId)}?tab=${encodeURIComponent(tabValue)}`;
   return (
     <div
       className="flex flex-col items-center justify-center gap-2 rounded-lg border border-blue-200 bg-blue-50 py-10 text-center"
@@ -345,12 +362,24 @@ function DeferredTabFallback({
       <p className="text-xs text-blue-700">
         Tab content is being migrated to the new design.
       </p>
-      <a
-        href="?tab=dashboard"
-        className="mt-1 text-xs font-medium text-blue-700 underline-offset-2 hover:underline"
-      >
-        Go to dashboard tab →
-      </a>
+      <div className="mt-2 flex flex-wrap items-center justify-center gap-3">
+        <a
+          href={legacyHref}
+          className="text-xs font-medium text-blue-800 underline-offset-2 hover:underline"
+          data-testid={`deferred-tab-${tabValue}-legacy-link`}
+        >
+          Open in legacy system →
+        </a>
+        <span aria-hidden="true" className="text-xs text-blue-400">
+          ·
+        </span>
+        <a
+          href="?tab=dashboard"
+          className="text-xs font-medium text-blue-700 underline-offset-2 hover:underline"
+        >
+          Go to dashboard tab →
+        </a>
+      </div>
     </div>
   );
 }

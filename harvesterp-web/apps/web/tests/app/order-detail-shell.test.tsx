@@ -736,10 +736,11 @@ describe("OrderTabs", () => {
     expect(productionTab.getAttribute("data-state")).toBe("active");
   });
 
-  it("non-migrated tab renders the deferred-tab fallback message + dashboard link", () => {
+  it("non-migrated tab renders the deferred-tab fallback message + both escape hatches", () => {
+    const order = makeOrder({ id: "abc-123-uuid" });
     renderWithQuery(
       <OrderTabs
-        order={makeOrder()}
+        order={order}
         role="ADMIN"
         timeline={null}
         initialTab="items"
@@ -756,7 +757,15 @@ describe("OrderTabs", () => {
     expect(
       screen.queryByText(/redirecting to legacy view/i),
     ).toBeNull();
-    // Manual link points at the migrated dashboard tab, not the legacy URL.
+    // Escape hatch 1 — "Open in legacy system" → /_legacy/orders/{id}?tab=…
+    // nginx routes /_legacy/* to Vue with the prefix stripped, so users
+    // can still reach the 13 unmigrated tabs via the Vue OrderDetail.vue.
+    const legacyLink = screen.getByTestId("deferred-tab-items-legacy-link");
+    expect(legacyLink).toBeInTheDocument();
+    expect(legacyLink.getAttribute("href")).toBe(
+      "/_legacy/orders/abc-123-uuid?tab=items",
+    );
+    // Escape hatch 2 — go-to-dashboard stays inside Next.js.
     expect(
       screen.getByText(/go to dashboard tab/i).getAttribute("href"),
     ).toBe("?tab=dashboard");

@@ -139,6 +139,13 @@ describe("nginx/nginx.dev.conf", () => {
     });
   }
 
+  it("has /_legacy/ Vue carve-out (so DeferredTabFallback can link to Vue)", () => {
+    // Mirrors the prod-config check below. Dev has only one server block,
+    // so we only assert presence + the trailing-slash proxy_pass form.
+    expect(conf).toMatch(/location\s+\^~\s+\/_legacy\//);
+    expect(conf).toMatch(/proxy_pass\s+http:\/\/vue_upstream\/;/);
+  });
+
   for (const prefix of REQUIRED_LOCATION_BLOCKS) {
     it(`has location block for: ${prefix}`, () => {
       // Prefix match: location /prefix/ or location /
@@ -253,6 +260,39 @@ describe("nginx/nginx.conf (production)", () => {
         `${id}: regex block must NOT leak into the client portal section`,
       ).toBeLessThan(clientStart);
     }
+  });
+
+  it("/_legacy/ Vue carve-out exists in admin portal only (regression-protected)", () => {
+    // The /_legacy/ prefix lets <DeferredTabFallback> link out to Vue's
+    // OrderDetail.vue for the 13 unmigrated tabs. nginx strips the prefix
+    // and forwards to vue_upstream — so users still reach Items / Payments /
+    // etc. while those tabs are mid-migration. Without this block, the
+    // /orders/{uuid} flip would be a hard regression.
+    const adminStart = conf.indexOf("server_name admin.absodok.com");
+    const clientStart = conf.indexOf("server_name client.absodok.com");
+    expect(adminStart).toBeGreaterThan(-1);
+
+    const matches = conf.match(/location\s+\^~\s+\/_legacy\//g);
+    expect(
+      matches,
+      "Expected exactly 1 /_legacy/ block (admin portal only)",
+    ).toHaveLength(1);
+
+    const offset = conf.search(/location\s+\^~\s+\/_legacy\//);
+    expect(
+      offset,
+      "/_legacy/ block must live inside admin portal section",
+    ).toBeGreaterThan(adminStart);
+    expect(
+      offset,
+      "/_legacy/ block must NOT leak into client portal section",
+    ).toBeLessThan(clientStart);
+
+    // The block must use the trailing-slash proxy_pass form so nginx
+    // strips the /_legacy/ prefix before forwarding to Vue. Anchor the
+    // assertion on a unique substring near the proxy_pass.
+    const adminSection = conf.slice(adminStart, clientStart);
+    expect(adminSection).toMatch(/proxy_pass\s+http:\/\/vue_upstream\/;/);
   });
 
   it("has /_next/ location in each portal block (3 occurrences)", () => {
