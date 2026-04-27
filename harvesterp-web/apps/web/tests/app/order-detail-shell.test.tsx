@@ -787,6 +787,22 @@ describe("OrderTabs", () => {
     expect(screen.queryByTestId("deferred-tab-dashboard")).toBeNull();
     expect(screen.getByTestId("order-dashboard-tab")).toBeInTheDocument();
   });
+
+  it("files tab renders OrderFilesTab (migrated in feat/orders-files-tab)", () => {
+    renderWithQuery(
+      <OrderTabs
+        order={makeOrder()}
+        role="ADMIN"
+        timeline={null}
+        initialTab="files"
+        initialQuery={null}
+      />,
+    );
+    // Files tab is now migrated → renders OrderFilesTab, NOT the
+    // deferred-fallback panel.
+    expect(screen.queryByTestId("deferred-tab-files")).toBeNull();
+    expect(screen.getByTestId("order-files-tab")).toBeInTheDocument();
+  });
 });
 
 // ── OrderShellClient (orchestrator integration) ─────────────────────────────

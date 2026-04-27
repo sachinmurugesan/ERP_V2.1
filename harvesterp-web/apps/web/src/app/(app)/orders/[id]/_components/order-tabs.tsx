@@ -10,6 +10,7 @@ import {
   TabsContent,
 } from "@/components/primitives/tabs";
 import { OrderDashboardTab } from "./tabs/order-dashboard-tab";
+import { OrderFilesTab } from "./tabs/order-files-tab";
 import type {
   OrderDetail,
   OrderStatus,
@@ -33,13 +34,13 @@ import type {
  *   Completed: Final Draft
  *   Transparency+Cleared+Role: Landed Cost
  *
- * Migration status (post feat/orders-dashboard-tab):
+ * Migration status (post feat/orders-files-tab):
  *   - dashboard tab → migrated; renders <OrderDashboardTab>.
- *   - All other 13 tabs → still render <DeferredTabFallback> with a
- *     friendly "Tab not yet migrated" message. The earlier auto-redirect
- *     to the Vue legacy view was REMOVED in this PR because nginx now
- *     routes `/orders/{uuid}` to Next.js, so the redirect would loop
- *     back to the same Next.js page.
+ *   - files tab     → migrated; renders <OrderFilesTab> (full CRUD).
+ *   - All other 12 tabs → still render <DeferredTabFallback> with a
+ *     friendly "Tab not yet migrated" message + an "Open in legacy
+ *     system" link to /_legacy/orders/{uuid}?tab={value} which nginx
+ *     forwards to Vue's OrderDetail.vue (strangler-fig escape hatch).
  *
  * Sticky: `sticky top-0 z-10 bg-white shadow-sm` so the bar stays visible
  * as the user scrolls through tab content.
@@ -304,6 +305,12 @@ export function OrderTabs({
               orderId={order.id}
               order={order}
               timeline={timeline}
+              role={role}
+            />
+          ) : t.value === "files" ? (
+            <OrderFilesTab
+              orderId={order.id}
+              order={order}
               role={role}
             />
           ) : (
