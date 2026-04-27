@@ -11,13 +11,13 @@ import type { OrderDetail } from "./_components/types";
 export const dynamic = "force-dynamic";
 
 /**
- * Sandbox page for the order-detail shell migration.
+ * Canonical order-detail page.
  *
- * Lives at `/orders-shell-preview/{id}` (NOT `/orders/{id}`) — the real
- * route takeover happens in Phase 2 alongside at least one migrated tab
- * (per Phase 2 §2.4 decision B3 in the migration log). This sandbox lets
- * us validate the shell + transition flow + tab nav without disrupting
- * production users.
+ * Lives at `/orders/{id}`. Promoted from the `/orders-shell-preview/{id}`
+ * sandbox in feat/orders-dashboard-tab — nginx now routes UUID-shaped
+ * `/orders/{id}` requests to Next.js (admin portal only). The dashboard
+ * tab is fully migrated; the other 13 tabs continue to redirect to the
+ * Vue legacy view via `<DeferredTabFallback>` until each is migrated.
  *
  * Renders an explicit error / 404 / 403 state — fixes the Vue gap where
  * `OrderDetail.vue` would silently render an empty <div> on initial-load
@@ -71,12 +71,12 @@ interface PageProps {
   params: Promise<{ id: string }>;
 }
 
-export default async function OrderShellPreviewPage({
+export default async function OrderDetailPage({
   params,
 }: PageProps): Promise<React.ReactElement> {
   const token = await getSessionToken();
   const { id } = await params;
-  if (!token) redirect(`/login?next=/orders-shell-preview/${id}`);
+  if (!token) redirect(`/login?next=/orders/${id}`);
 
   const [role, outcome] = await Promise.all([
     resolveUserRole(),
@@ -95,28 +95,12 @@ export default async function OrderShellPreviewPage({
 
   return (
     <div className="mx-auto max-w-[1400px] px-4 py-4">
-      <SandboxNotice />
       <OrderShellClient initialOrder={outcome.order} role={role} />
     </div>
   );
 }
 
 // ── State cards (replace Vue's silent empty-div failure mode) ───────────────
-
-function SandboxNotice(): React.ReactElement {
-  return (
-    <div
-      className="mb-3 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800"
-      role="status"
-    >
-      <strong>Sandbox preview.</strong> This is a Phase 1 sandbox of the
-      order-detail shell at <code>/orders-shell-preview/[id]</code>. The real
-      route at <code>/orders/[id]</code> still serves the Vue page. Tab content
-      panels are deliberately deferred — clicking any tab redirects to the Vue
-      legacy view.
-    </div>
-  );
-}
 
 function NotFoundCard({ id }: { id: string }): React.ReactElement {
   return (
@@ -166,7 +150,7 @@ function ErrorCard({
       <p className="mt-2 text-sm text-slate-500">{message}</p>
       <p className="mt-1 text-xs text-slate-400">Order id: {id}</p>
       <div className="mt-6 flex justify-center gap-2">
-        <Link href={`/orders-shell-preview/${id}`}>
+        <Link href={`/orders/${id}`}>
           <Button variant="outline">Retry</Button>
         </Link>
         <Link href="/orders">

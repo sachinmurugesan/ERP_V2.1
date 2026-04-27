@@ -428,9 +428,9 @@ export function OrderShellClient({
       <OrderTabs
         order={order}
         role={role}
+        timeline={timelineQuery.data ?? null}
         initialTab={searchParams.get("tab")}
         initialQuery={searchParams.get("query")}
-        inspectMode={searchParams.get("_inspect") === "1"}
       />
 
       {/* Modals */}

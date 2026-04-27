@@ -1,6 +1,7 @@
 /**
  * order-detail-shell.test.tsx — Integration tests for the order-detail
- * shell page at /orders-shell-preview/:id (B3 sandbox).
+ * shell page at /orders/:id (promoted from the /orders-shell-preview/:id
+ * sandbox in feat/orders-dashboard-tab).
  *
  * Covers: header rendering, role gating, banners, stage stepper, transition
  * action bar, modals, deferred-tab fallback, deep-link surface, and mobile
@@ -16,21 +17,21 @@ import * as React from "react";
 import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-import { OrderShellClient } from "../../src/app/(app)/orders-shell-preview/[id]/_components/order-shell-client";
-import { OrderHeader } from "../../src/app/(app)/orders-shell-preview/[id]/_components/order-header";
-import { ClientDraftBanner } from "../../src/app/(app)/orders-shell-preview/[id]/_components/client-draft-banner";
-import { FactoryNotAssignedBanner } from "../../src/app/(app)/orders-shell-preview/[id]/_components/factory-not-assigned-banner";
-import { TransitionActionBar } from "../../src/app/(app)/orders-shell-preview/[id]/_components/transition-action-bar";
+import { OrderShellClient } from "../../src/app/(app)/orders/[id]/_components/order-shell-client";
+import { OrderHeader } from "../../src/app/(app)/orders/[id]/_components/order-header";
+import { ClientDraftBanner } from "../../src/app/(app)/orders/[id]/_components/client-draft-banner";
+import { FactoryNotAssignedBanner } from "../../src/app/(app)/orders/[id]/_components/factory-not-assigned-banner";
+import { TransitionActionBar } from "../../src/app/(app)/orders/[id]/_components/transition-action-bar";
 import {
   TransitionErrorBanner,
   navigateToFix,
-} from "../../src/app/(app)/orders-shell-preview/[id]/_components/transition-error-banner";
-import { OrderTabs } from "../../src/app/(app)/orders-shell-preview/[id]/_components/order-tabs";
+} from "../../src/app/(app)/orders/[id]/_components/transition-error-banner";
+import { OrderTabs } from "../../src/app/(app)/orders/[id]/_components/order-tabs";
 import type {
   OrderDetail,
   OrderTimelineResponse,
   NextStagesResponse,
-} from "../../src/app/(app)/orders-shell-preview/[id]/_components/types";
+} from "../../src/app/(app)/orders/[id]/_components/types";
 
 // ── Mocks ─────────────────────────────────────────────────────────────────────
 
@@ -40,7 +41,7 @@ vi.mock("next/navigation", () => ({
     replace: vi.fn(),
     prefetch: vi.fn(),
   }),
-  usePathname: () => "/orders-shell-preview/o1",
+  usePathname: () => "/orders/o1",
   useSearchParams: () => new URLSearchParams(),
 }));
 
@@ -596,10 +597,11 @@ describe("TransitionErrorBanner + navigateToFix", () => {
 
 describe("OrderTabs", () => {
   it("renders only Dashboard / Items / Queries / Files for DRAFT order (no PostPI tabs)", () => {
-    render(
+    renderWithQuery(
       <OrderTabs
         order={makeOrder({ status: "DRAFT" })}
         role="ADMIN"
+        timeline={null}
         initialTab={null}
         initialQuery={null}
       />,
@@ -616,10 +618,11 @@ describe("OrderTabs", () => {
   });
 
   it("renders Payments tab when status is PostPI (e.g. PI_SENT)", () => {
-    render(
+    renderWithQuery(
       <OrderTabs
         order={makeOrder({ status: "PI_SENT" })}
         role="ADMIN"
+        timeline={null}
         initialTab={null}
         initialQuery={null}
       />,
@@ -628,10 +631,11 @@ describe("OrderTabs", () => {
   });
 
   it("renders Landed Cost tab only for TRANSPARENCY + CLEARED+ + ADMIN/SUPER_ADMIN/FINANCE", () => {
-    render(
+    renderWithQuery(
       <OrderTabs
         order={makeOrder({ status: "DELIVERED", client_type: "TRANSPARENCY" })}
         role="FINANCE"
+        timeline={null}
         initialTab={null}
         initialQuery={null}
       />,
@@ -642,10 +646,11 @@ describe("OrderTabs", () => {
   });
 
   it("hides Landed Cost tab for OPERATIONS role even on TRANSPARENCY DELIVERED order", () => {
-    render(
+    renderWithQuery(
       <OrderTabs
         order={makeOrder({ status: "DELIVERED", client_type: "TRANSPARENCY" })}
         role="OPERATIONS"
+        timeline={null}
         initialTab={null}
         initialQuery={null}
       />,
@@ -656,12 +661,13 @@ describe("OrderTabs", () => {
   });
 
   it("Queries tab shows badge with count when total > 0", () => {
-    render(
+    renderWithQuery(
       <OrderTabs
         order={makeOrder({
           query_counts: { total: 5, open: 3, replied: 1 },
         })}
         role="ADMIN"
+        timeline={null}
         initialTab={null}
         initialQuery={null}
       />,
@@ -673,12 +679,13 @@ describe("OrderTabs", () => {
   });
 
   it("Queries tab has NO badge when total === 0", () => {
-    render(
+    renderWithQuery(
       <OrderTabs
         order={makeOrder({
           query_counts: { total: 0, open: 0, replied: 0 },
         })}
         role="ADMIN"
+        timeline={null}
         initialTab={null}
         initialQuery={null}
       />,
@@ -687,10 +694,11 @@ describe("OrderTabs", () => {
   });
 
   it("sticky tab bar element has the sticky class hint", () => {
-    render(
+    renderWithQuery(
       <OrderTabs
         order={makeOrder()}
         role="ADMIN"
+        timeline={null}
         initialTab={null}
         initialQuery={null}
       />,
@@ -700,10 +708,11 @@ describe("OrderTabs", () => {
   });
 
   it("deep-link initialTab='payments' on PI_SENT order activates Payments tab", () => {
-    render(
+    renderWithQuery(
       <OrderTabs
         order={makeOrder({ status: "PI_SENT" })}
         role="ADMIN"
+        timeline={null}
         initialTab="payments"
         initialQuery={null}
       />,
@@ -713,10 +722,11 @@ describe("OrderTabs", () => {
   });
 
   it("invalid initialTab falls back to default for current status", () => {
-    render(
+    renderWithQuery(
       <OrderTabs
         order={makeOrder({ status: "FACTORY_ORDERED" })}
         role="ADMIN"
+        timeline={null}
         initialTab="not-a-real-tab"
         initialQuery={null}
       />,
@@ -726,19 +736,56 @@ describe("OrderTabs", () => {
     expect(productionTab.getAttribute("data-state")).toBe("active");
   });
 
-  it("active TabsContent renders the deferred-tab fallback skeleton", () => {
-    render(
+  it("non-migrated tab renders the deferred-tab fallback message + both escape hatches", () => {
+    const order = makeOrder({ id: "abc-123-uuid" });
+    renderWithQuery(
+      <OrderTabs
+        order={order}
+        role="ADMIN"
+        timeline={null}
+        initialTab="items"
+        initialQuery={null}
+      />,
+    );
+    // Items tab is not yet migrated → fallback panel renders.
+    expect(screen.getByTestId("deferred-tab-items")).toBeInTheDocument();
+    expect(screen.getByText(/order items tab/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/being migrated to the new design/i),
+    ).toBeInTheDocument();
+    // Post-nginx-flip: no auto-redirect text — would loop back to itself.
+    expect(
+      screen.queryByText(/redirecting to legacy view/i),
+    ).toBeNull();
+    // Escape hatch 1 — "Open in legacy system" → /_legacy/orders/{id}?tab=…
+    // nginx routes /_legacy/* to Vue with the prefix stripped, so users
+    // can still reach the 13 unmigrated tabs via the Vue OrderDetail.vue.
+    const legacyLink = screen.getByTestId("deferred-tab-items-legacy-link");
+    expect(legacyLink).toBeInTheDocument();
+    expect(legacyLink.getAttribute("href")).toBe(
+      "/_legacy/orders/abc-123-uuid?tab=items",
+    );
+    // Escape hatch 2 — go-to-dashboard stays inside Next.js.
+    expect(
+      screen.getByText(/go to dashboard tab/i).getAttribute("href"),
+    ).toBe("?tab=dashboard");
+  });
+
+  it("dashboard tab no longer renders the deferred fallback (migrated)", () => {
+    renderWithQuery(
       <OrderTabs
         order={makeOrder()}
         role="ADMIN"
+        timeline={null}
         initialTab={null}
         initialQuery={null}
       />,
     );
-    // Default tab for DRAFT is "dashboard"
-    expect(screen.getByTestId("deferred-tab-dashboard")).toBeInTheDocument();
-    expect(screen.getByText(/loading dashboard/i)).toBeInTheDocument();
-    expect(screen.getByText(/redirecting to legacy view/i)).toBeInTheDocument();
+    // Default tab for DRAFT is "dashboard". It now renders real content
+    // (the OrderDashboardTab, identifiable by its testid), NOT the
+    // deferred fallback.
+    expect(screen.queryByTestId("deferred-tab-dashboard")).toBeNull();
+    expect(screen.getByTestId("order-dashboard-tab")).toBeInTheDocument();
   });
 });
 
@@ -749,8 +796,10 @@ describe("OrderShellClient — orchestration", () => {
     renderWithQuery(
       <OrderShellClient initialOrder={makeOrder()} role="ADMIN" />,
     );
-    expect(screen.getByText("AB-2026-0001")).toBeInTheDocument();
-    expect(screen.getByText("Acme Corp")).toBeInTheDocument();
+    // Order number appears in BOTH the header (h1) AND the dashboard tab's
+    // Order Summary card — so use getAllByText. Same for client name.
+    expect(screen.getAllByText("AB-2026-0001").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Acme Corp").length).toBeGreaterThan(0);
     // Wait for tabs to render after queries settle
     await waitFor(() => {
       expect(screen.getByTestId("tabs-list")).toBeInTheDocument();
