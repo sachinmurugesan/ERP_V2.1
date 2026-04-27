@@ -840,6 +840,67 @@ describe("OrderTabs", () => {
     expect(badge).toHaveTextContent("7");
     expect(badge.className).toMatch(/animate-pulse/);
   });
+
+  it("landed-cost tab renders OrderLandedCostTab when stage+role+client_type all match (migrated in feat/orders-landed-cost-tab)", () => {
+    renderWithQuery(
+      <OrderTabs
+        order={makeOrder({
+          status: "DELIVERED",
+          client_type: "TRANSPARENCY",
+        })}
+        role="FINANCE"
+        timeline={null}
+        initialTab="landed-cost"
+        initialQuery={null}
+      />,
+    );
+    // Tab is now migrated → renders OrderLandedCostTab in its loading
+    // state, NOT the deferred-fallback panel. The skeleton testid
+    // proves the real component mounted (deep error/empty branches
+    // are covered in orders-landed-cost-tab.test.tsx).
+    expect(screen.queryByTestId("deferred-tab-landed-cost")).toBeNull();
+    expect(screen.getByTestId("landed-cost-skeleton")).toBeInTheDocument();
+  });
+
+  it("landed-cost tab still hidden for OPERATIONS role even on TRANSPARENCY DELIVERED order (visibility predicate)", () => {
+    renderWithQuery(
+      <OrderTabs
+        order={makeOrder({
+          status: "DELIVERED",
+          client_type: "TRANSPARENCY",
+        })}
+        role="OPERATIONS"
+        timeline={null}
+        initialTab={null}
+        initialQuery={null}
+      />,
+    );
+    // Visibility predicate at order-tabs.tsx:192-199 still excludes
+    // OPERATIONS — the tab trigger should not appear and the panel
+    // should not mount.
+    expect(screen.queryByRole("tab", { name: /landed cost/i })).toBeNull();
+    expect(screen.queryByTestId("landed-cost-skeleton")).toBeNull();
+    expect(screen.queryByTestId("landed-cost-tab")).toBeNull();
+  });
+
+  it("landed-cost tab still hidden for REGULAR client_type even with FINANCE role on DELIVERED order (visibility predicate)", () => {
+    renderWithQuery(
+      <OrderTabs
+        order={makeOrder({
+          status: "DELIVERED",
+          client_type: "REGULAR",
+        })}
+        role="FINANCE"
+        timeline={null}
+        initialTab={null}
+        initialQuery={null}
+      />,
+    );
+    // REGULAR clients never see the tab — backend would 404 anyway,
+    // but the shell already filters at the visibility layer.
+    expect(screen.queryByRole("tab", { name: /landed cost/i })).toBeNull();
+    expect(screen.queryByTestId("landed-cost-skeleton")).toBeNull();
+  });
 });
 
 // ── OrderShellClient (orchestrator integration) ─────────────────────────────

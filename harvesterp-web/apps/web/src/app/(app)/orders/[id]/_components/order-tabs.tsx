@@ -11,6 +11,7 @@ import {
 } from "@/components/primitives/tabs";
 import { OrderDashboardTab } from "./tabs/order-dashboard-tab";
 import { OrderFilesTab } from "./tabs/order-files-tab";
+import { OrderLandedCostTab } from "./tabs/order-landed-cost-tab";
 import { OrderQueriesTab } from "./tabs/order-queries-tab";
 import type {
   OrderDetail,
@@ -35,17 +36,22 @@ import type {
  *   Completed: Final Draft
  *   Transparency+Cleared+Role: Landed Cost
  *
- * Migration status (post feat/orders-queries-tab):
- *   - dashboard tab → migrated; renders <OrderDashboardTab>.
- *   - files tab     → migrated; renders <OrderFilesTab> (full CRUD).
- *   - queries tab   → migrated (Tier 1); renders <OrderQueriesTab>.
- *                     The ?query={id} URL param is forwarded as
- *                     highlightSection — auto-expands + scroll-flashes
- *                     the matching query.
- *                     Tier 2 (attachments + lightbox + bulk + analytics
- *                     + CSV) deferred — see
- *                     ERP_V1/docs/tech-debt/orders-queries-tab-tier2.md.
- *   - All other 11 tabs → still render <DeferredTabFallback> with a
+ * Migration status (post feat/orders-landed-cost-tab):
+ *   - dashboard tab    → migrated; renders <OrderDashboardTab>.
+ *   - files tab        → migrated; renders <OrderFilesTab> (full CRUD).
+ *   - queries tab      → migrated (Tier 1); renders <OrderQueriesTab>.
+ *                         The ?query={id} URL param is forwarded as
+ *                         highlightSection — auto-expands + scroll-
+ *                         flashes the matching query.
+ *                         Tier 2 (attachments + lightbox + bulk +
+ *                         analytics + CSV) deferred — see
+ *                         ERP_V1/docs/tech-debt/orders-queries-tab-tier2.md.
+ *   - landed-cost tab  → migrated; renders <OrderLandedCostTab>
+ *                         (read-only cost breakdown + Excel download).
+ *                         The 3-axis visibility predicate stays inline
+ *                         here (status ∈ CLEARED+, role ∈ FINANCE
+ *                         family, client_type === TRANSPARENCY).
+ *   - All other 10 tabs → still render <DeferredTabFallback> with a
  *     friendly "Tab not yet migrated" message + an "Open in legacy
  *     system" link to /_legacy/orders/{uuid}?tab={value} which nginx
  *     forwards to Vue's OrderDetail.vue (strangler-fig escape hatch).
@@ -328,6 +334,8 @@ export function OrderTabs({
               role={role}
               highlightSection={initialQuery}
             />
+          ) : t.value === "landed-cost" ? (
+            <OrderLandedCostTab orderId={order.id} order={order} />
           ) : (
             <DeferredTabFallback
               orderId={order.id}
