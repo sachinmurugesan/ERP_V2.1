@@ -89,6 +89,9 @@ export const Resource = {
   DOCUMENT_UPLOAD: "DOCUMENT_UPLOAD",
   DOCUMENT_DELETE: "DOCUMENT_DELETE",
 
+  // Order queries (added in feat/orders-queries-tab — QueriesTab Tier 1)
+  QUERY_DELETE: "QUERY_DELETE",
+
   // Factory ledger (Cluster A — D-009)
   FACTORY_LEDGER_VIEW:  "FACTORY_LEDGER_VIEW",
   FACTORY_PAYMENTS:     "FACTORY_PAYMENTS",
@@ -208,6 +211,17 @@ export const PERMISSION_MATRIX: Readonly<Record<Resource, readonly UserRole[]>> 
   // VERIFIED: live curl 2026-04-27 (ADMIN DELETE returns 200, body
   // `{"message":"Document deleted"}`).
   [Resource.DOCUMENT_DELETE]: [ADMIN, OPERATIONS],
+
+  // Backend `queries.py:delete_query` (line 437) gates on creator-or-admin:
+  //   - INTERNAL users (ADMIN/OPERATIONS/FINANCE) can delete any query.
+  //   - CLIENT users can only delete queries they created.
+  // FE gate is STRICTER than backend on purpose — FINANCE could create AND
+  // delete a query as the creator under backend rules, but admin-portal
+  // policy reserves delete for ADMIN/OPERATIONS only. Defense-in-depth:
+  // backend remains the source of truth for actual rejection.
+  // VERIFIED: live curl 2026-04-27 (ADMIN DELETE returns 200, body
+  // `{"deleted":true,"id":"..."}`).
+  [Resource.QUERY_DELETE]: [ADMIN, OPERATIONS],
 
   // --- Factory ledger (D-009 / Cluster A) ---
   // All 9 endpoints carry Depends(require_factory_financial) = [SUPER_ADMIN, FINANCE].
