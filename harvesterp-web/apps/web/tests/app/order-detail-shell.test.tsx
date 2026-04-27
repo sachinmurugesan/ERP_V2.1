@@ -803,6 +803,43 @@ describe("OrderTabs", () => {
     expect(screen.queryByTestId("deferred-tab-files")).toBeNull();
     expect(screen.getByTestId("order-files-tab")).toBeInTheDocument();
   });
+
+  it("queries tab renders OrderQueriesTab (migrated in feat/orders-queries-tab)", () => {
+    renderWithQuery(
+      <OrderTabs
+        order={makeOrder()}
+        role="ADMIN"
+        timeline={null}
+        initialTab="queries"
+        initialQuery={null}
+      />,
+    );
+    // Queries tab is now migrated → renders OrderQueriesTab, NOT the
+    // deferred-fallback panel.
+    expect(screen.queryByTestId("deferred-tab-queries")).toBeNull();
+    expect(screen.getByTestId("order-queries-tab")).toBeInTheDocument();
+  });
+
+  it("queries tab badge still renders on the tab trigger", () => {
+    renderWithQuery(
+      <OrderTabs
+        order={makeOrder({
+          query_counts: { total: 7, open: 3, replied: 2 },
+        })}
+        role="ADMIN"
+        timeline={null}
+        initialTab={null}
+        initialQuery={null}
+      />,
+    );
+    // The shell's tab nav reads order.query_counts.total + .open and
+    // displays a badge (red pulse when open > 0). This must still
+    // work after the queries tab migration — the badge lives on the
+    // TRIGGER, not inside the tab content panel.
+    const badge = screen.getByTestId("queries-tab-badge");
+    expect(badge).toHaveTextContent("7");
+    expect(badge.className).toMatch(/animate-pulse/);
+  });
 });
 
 // ── OrderShellClient (orchestrator integration) ─────────────────────────────
