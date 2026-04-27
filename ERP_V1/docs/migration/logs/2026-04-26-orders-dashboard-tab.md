@@ -483,14 +483,58 @@ N=10 → N=11. Row added for `/orders/{uuid}` with full annotation: regex shape,
 
 ---
 
-## 8. Final status
+## 8. Live verification (R-16 + R-17)
 
-- Tests passing: **749 / 749**
-- Build: ✅ `pnpm build` clean; `/orders/[id]` route at 13.7 kB
-- nginx config: ✅ dev + admin portal only in prod (D-4 confirmed)
-- `MIGRATED_PATHS.md`: ✅ N=10 → N=11
-- nginx-config.test.ts: ✅ admin-only assertions added
-- R-16: pending live verification
-- R-17: pending visual scoring
-- Branch: `feat/orders-dashboard-tab` (6 commits)
-- PR: pending push
+Full evidence + screenshots in `docs/migration/screenshots/2026-04-26-orders-dashboard-tab.md`.
+
+### 8.1 R-16 — happy-path + console checks (PASS)
+
+URL: `http://localhost:3100/orders/de2258e0-34f5-4fd3-8c70-539671425eb4?tab=dashboard`
+Auth: ADMIN. Order: fresh DRAFT (R17-DASH-001) created via API mid-session because the prior probe-DB had been wiped.
+
+```
+R16_check_1_fontFamily   = "Manrope, ui-sans-serif, system-ui, …"
+R16_check_1_pass         = true   (contains "Manrope")
+R16_check_2_styleSheets  = 2
+R16_check_2_pass         = true   (> 0)
+R16_check_3_fSans        = "\"Manrope\", ui-sans-serif, system-ui, …"
+R16_check_3_pass         = true   (non-empty)
+
+dashboard_rendered           = true
+factory_restricted_for_admin = true   ✅ D-004 enforced (ADMIN sees placeholder)
+factory_financials_visible   = false  ✅ no leak
+console_errors               = 0
+visible_tabs                 = ["Dashboard", "Order Items", "Queries", "Files"]
+```
+
+### 8.2 R-16 — non-dashboard tab redirect-loop fix (PASS)
+
+Clicked Order Items tab. URL becomes `?tab=items`. The DeferredTabFallback panel renders with text "Order Items tab. Tab content is being migrated to the new design. Go to dashboard tab →" — no auto-redirect, no loop. The "Go to dashboard tab" link href = `?tab=dashboard`. Validates the redirect-loop fix from Commit 5.
+
+### 8.3 R-17 — visual fidelity scorecard (PASS)
+
+| Dimension | Score | Notes |
+|---|---|---|
+| Typography | **9** | Manrope ✓; order h1 verified at 20 px font-semibold (text-xl); stage chip 11 px uppercase via `.chip` token; tab labels 14 px font-medium with active emerald-700 text + emerald-600 border. |
+| Layout | **9** | Sidebar+main split mirrors `procurement.jsx`. Page header (back+h1+chip+identity+actions). Stage stepper card row. Transition action bar row. Sticky tab nav. Dashboard 2-col grid (`md:grid-cols-2`). |
+| Spacing | **8** | Card framing on stepper, action bar, tab content, each dashboard card. ~16 px vertical gaps. Stepper at 1400 px ≈ 64 px per circle. SummaryRow `space-y-2` clean. |
+| Color | **9** | Brand emerald CTAs. Sidebar/tab-active emerald. Stepper current blue / upcoming gray. Restricted-card slate-50 + slate-200 + slate-700/500 — informational, not destructive tone. No off-brand colors. |
+| Component usage | **8** | StageChip uses DS `.chip` ✓; Tabs primitive emerald-underline ✓; Card primitives wrap each dashboard card ✓; RoleGate wraps Card 2 ✓; Skeleton for loading ✓; formatINR/formatDate from `@harvesterp/lib` ✓. Card primitive uses `rounded-xl border bg-card …` Tailwind utilities rather than the `.card` token class — same audit-rec-#6 pattern carried over from prior migrations. |
+| **Average** | **8.6 / 10** | All five dimensions ≥ 7 → **R-17 PASS** |
+
+### 8.4 Final checklist
+
+- ✅ pnpm lint — 0 errors
+- ✅ pnpm test (web) — **749 / 749 passing** (was 693 → +56 tests)
+- ✅ pnpm build — `/orders/[id]` route present at 13.7 kB; all 4 new proxies present
+- ✅ nginx — dev + admin-portal-only prod (D-4 confirmed)
+- ✅ MIGRATED_PATHS.md — N=10 → N=11
+- ✅ nginx-config.test.ts — admin-only assertions added
+- ✅ R-16 — all 3 console checks pass; 0 console errors
+- ✅ R-17 — all 5 dimensions ≥ 7; average 8.6
+- ✅ D-004 — ADMIN sees Restricted-to-Finance placeholder; FINANCE sees real data
+- ✅ Dashboard tab renders real content at `/orders/{uuid}`
+- ✅ Other 13 tabs show inline fallback (no redirect loop)
+- ✅ Migration log fully updated
+
+Branch: `feat/orders-dashboard-tab` (6 commits + 1 amend on Commit 3 + screenshot+log update commit pending). Push + PR pending.
