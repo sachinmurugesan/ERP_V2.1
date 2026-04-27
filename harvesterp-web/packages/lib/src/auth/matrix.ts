@@ -85,6 +85,10 @@ export const Resource = {
   ORDER_TRANSITION:       "ORDER_TRANSITION",
   ORDER_APPROVE_INQUIRY:  "ORDER_APPROVE_INQUIRY",
 
+  // Order documents (added in feat/orders-files-tab — FilesTab CRUD)
+  DOCUMENT_UPLOAD: "DOCUMENT_UPLOAD",
+  DOCUMENT_DELETE: "DOCUMENT_DELETE",
+
   // Factory ledger (Cluster A — D-009)
   FACTORY_LEDGER_VIEW:  "FACTORY_LEDGER_VIEW",
   FACTORY_PAYMENTS:     "FACTORY_PAYMENTS",
@@ -187,6 +191,23 @@ export const PERMISSION_MATRIX: Readonly<Record<Resource, readonly UserRole[]>> 
   [Resource.ORDER_REOPEN]:           [ADMIN],
   [Resource.ORDER_TRANSITION]:       [ADMIN, OPERATIONS],
   [Resource.ORDER_APPROVE_INQUIRY]:  [ADMIN, OPERATIONS, FINANCE],
+
+  // --- Order documents (FilesTab — feat/orders-files-tab) ---
+  // Backend `documents.py:upload_document` accepts any authenticated user
+  // (CLIENT/FACTORY restricted by RLS to their own orders). Internal portal
+  // surfaces upload to ADMIN + OPERATIONS only — FINANCE is excluded
+  // because finance users do not own document uploads in our admin flow.
+  // VERIFIED: backend/routers/documents.py:60-103 (any auth user) +
+  //           live curl 2026-04-27 (ADMIN upload returns 200).
+  [Resource.DOCUMENT_UPLOAD]: [ADMIN, OPERATIONS],
+
+  // Backend `documents.py:delete_document` (line 132) explicitly checks:
+  //   if current_user.role not in ("ADMIN", "SUPER_ADMIN", "OPERATIONS"):
+  //     raise 403
+  // Mirrors backend exactly (SUPER_ADMIN bypass implicit via canAccess()).
+  // VERIFIED: live curl 2026-04-27 (ADMIN DELETE returns 200, body
+  // `{"message":"Document deleted"}`).
+  [Resource.DOCUMENT_DELETE]: [ADMIN, OPERATIONS],
 
   // --- Factory ledger (D-009 / Cluster A) ---
   // All 9 endpoints carry Depends(require_factory_financial) = [SUPER_ADMIN, FINANCE].
