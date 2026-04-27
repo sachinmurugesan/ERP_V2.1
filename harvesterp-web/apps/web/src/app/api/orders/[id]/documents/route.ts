@@ -3,6 +3,10 @@ import { type UserRole, Resource, canAccess } from "@harvesterp/lib";
 import { getSessionToken } from "@/lib/session";
 import { getServerClient } from "@/lib/api-server";
 
+// Note: this file exports GET + POST. The internal `UPLOAD_ROLES`
+// constant is intentionally NOT exported — Next.js route files only
+// permit a fixed set of exports and rejects ad-hoc named exports.
+
 /**
  * GET / POST  /api/orders/{id}/documents
  *
@@ -38,12 +42,6 @@ export interface OrderDocument {
   file_size: number;
   uploaded_at: string | null;
 }
-
-const UPLOAD_ROLES: ReadonlyArray<UserRole> = [
-  "ADMIN",
-  "OPERATIONS",
-  "SUPER_ADMIN",
-] as UserRole[];
 
 async function resolveCallerRole(): Promise<UserRole | undefined> {
   try {
@@ -171,9 +169,3 @@ export async function POST(
     return NextResponse.json({ error: "Upload failed" }, { status: 502 });
   }
 }
-
-/**
- * Allow upload roles to be discovered by tests without importing the
- * matrix directly (helps keep test fixtures stable).
- */
-export const __INTERNAL_UPLOAD_ROLES = UPLOAD_ROLES;
