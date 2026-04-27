@@ -11,6 +11,7 @@ import {
 } from "@/components/primitives/tabs";
 import { OrderDashboardTab } from "./tabs/order-dashboard-tab";
 import { OrderFilesTab } from "./tabs/order-files-tab";
+import { OrderQueriesTab } from "./tabs/order-queries-tab";
 import type {
   OrderDetail,
   OrderStatus,
@@ -34,10 +35,17 @@ import type {
  *   Completed: Final Draft
  *   Transparency+Cleared+Role: Landed Cost
  *
- * Migration status (post feat/orders-files-tab):
+ * Migration status (post feat/orders-queries-tab):
  *   - dashboard tab → migrated; renders <OrderDashboardTab>.
  *   - files tab     → migrated; renders <OrderFilesTab> (full CRUD).
- *   - All other 12 tabs → still render <DeferredTabFallback> with a
+ *   - queries tab   → migrated (Tier 1); renders <OrderQueriesTab>.
+ *                     The ?query={id} URL param is forwarded as
+ *                     highlightSection — auto-expands + scroll-flashes
+ *                     the matching query.
+ *                     Tier 2 (attachments + lightbox + bulk + analytics
+ *                     + CSV) deferred — see
+ *                     ERP_V1/docs/tech-debt/orders-queries-tab-tier2.md.
+ *   - All other 11 tabs → still render <DeferredTabFallback> with a
  *     friendly "Tab not yet migrated" message + an "Open in legacy
  *     system" link to /_legacy/orders/{uuid}?tab={value} which nginx
  *     forwards to Vue's OrderDetail.vue (strangler-fig escape hatch).
@@ -312,6 +320,13 @@ export function OrderTabs({
               orderId={order.id}
               order={order}
               role={role}
+            />
+          ) : t.value === "queries" ? (
+            <OrderQueriesTab
+              orderId={order.id}
+              order={order}
+              role={role}
+              highlightSection={initialQuery}
             />
           ) : (
             <DeferredTabFallback
